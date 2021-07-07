@@ -24,3 +24,10 @@ jobs:
     
     - name: Build with Gradle
       run: ./gradlew build -x lint
+      
+    - name: Upload apk
+      uses: actions/upload-artifact@v2
+      with:
+        name: Infinity-${{github.sha}}.zip
+        path: build/apk/*
+        if-no-files-found: error
