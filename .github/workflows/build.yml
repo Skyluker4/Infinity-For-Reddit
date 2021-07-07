@@ -29,5 +29,5 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: Infinity-${{github.sha}}.zip
-        path: build/apk/*
+        path: build/apk/
         if-no-files-found: error
