@@ -149,7 +149,7 @@ dependencies {
     implementation 'com.lsjwzh:materialloadingprogressbar:0.5.8-RELEASE'
 
     // SearchView
-    implementation 'com.github.Ferfalk:SimpleSearchView:0.1.4'
+    implementation 'com.github.Ferfalk:SimpleSearchView:0.2.0'
 
     // Customizable TextView
     implementation 'com.libRG:customtextview:2.4'
