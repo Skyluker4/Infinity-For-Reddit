@@ -16,6 +16,9 @@ android {
                 arguments = [eventBusIndex: 'ml.docilealligator.infinityforreddit.EventBusIndex']
             }
         }
+        buildConfigField "String", "REDDIT_API_KEY", "\"${System.env.INFINITY_REDDIT_API_KEY}\""
+        buildConfigField "String", "REDDIT_REDIRECT_URI", "\"${System.env.INFINITY_REDDIT_REDIRECT_URI}\""
+        buildConfigField "String", "REDDIT_USER_AGENT", "\"${System.env.INFINITY_REDDIT_USER_AGENT}\""
     }
     buildTypes {
         release {
@@ -194,3 +197,16 @@ dependencies {
     // debugImplementation because LeakCanary should only run in debug builds.
     //debugImplementation 'com.squareup.leakcanary:leakcanary-android:x.y'
 }
+
+task loadEnv() {
+    def envFile = file(".env")
+    if (envFile.exists()) {
+        Properties props = new Properties()
+        props.load(new FileInputStream(envFile))
+        props.each { k, v ->
+            environment k, v
+        }
+    }
+}
+
+preBuild.dependsOn loadEnv
