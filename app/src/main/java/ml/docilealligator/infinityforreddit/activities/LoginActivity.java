@@ -1,6 +1,5 @@
 package ml.docilealligator.infinityforreddit.activities;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -13,7 +12,6 @@ import android.text.util.Linkify;
 import android.util.Log;
 import android.view.InflateException;
 import android.view.MenuItem;
-import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -21,14 +19,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.core.app.ActivityCompat;
 
-import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import org.greenrobot.eventbus.EventBus;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -39,8 +33,6 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import me.saket.bettermovementmethod.BetterLinkMovementMethod;
 import ml.docilealligator.infinityforreddit.FetchMyInfo;
 import ml.docilealligator.infinityforreddit.Infinity;
@@ -50,6 +42,8 @@ import ml.docilealligator.infinityforreddit.apis.RedditAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.ParseAndInsertNewAccount;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
+import ml.docilealligator.infinityforreddit.databinding.ActivityLoginBinding;
+import ml.docilealligator.infinityforreddit.events.NewUserLoggedInEvent;
 import ml.docilealligator.infinityforreddit.utils.APIUtils;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
@@ -60,21 +54,8 @@ import retrofit2.Retrofit;
 
 public class LoginActivity extends BaseActivity {
 
-    private static final String ENABLE_DOM_STATE = "EDS";
     private static final String IS_AGREE_TO_USER_AGGREMENT_STATE = "IATUAS";
 
-    @BindView(R.id.coordinator_layout_login_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_login_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.toolbar_login_activity)
-    Toolbar toolbar;
-    @BindView(R.id.two_fa_infO_text_view_login_activity)
-    TextView twoFAInfoTextView;
-    @BindView(R.id.webview_login_activity)
-    WebView webView;
-    @BindView(R.id.fab_login_activity)
-    FloatingActionButton fab;
     @Inject
     @Named("no_oauth")
     Retrofit mRetrofit;
@@ -94,8 +75,8 @@ public class LoginActivity extends BaseActivity {
     @Inject
     Executor mExecutor;
     private String authCode;
-    private boolean enableDom = false;
     private boolean isAgreeToUserAgreement = false;
+    private ActivityLoginBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,9 +85,10 @@ public class LoginActivity extends BaseActivity {
         setImmersiveModeNotApplicable();
 
         super.onCreate(savedInstanceState);
+        binding = ActivityLoginBinding.inflate(getLayoutInflater());
 
         try {
-            setContentView(R.layout.activity_login);
+            setContentView(binding.getRoot());
         } catch (InflateException ie) {
             Log.e("LoginActivity", "Failed to inflate LoginActivity: " + ie.getMessage());
             Toast.makeText(LoginActivity.this, R.string.no_system_webview_error, Toast.LENGTH_SHORT).show();
@@ -114,41 +96,21 @@ public class LoginActivity extends BaseActivity {
             return;
         }
 
-        ButterKnife.bind(this);
-
         applyCustomTheme();
 
         if (mSharedPreferences.getBoolean(SharedPreferencesUtils.SWIPE_RIGHT_TO_GO_BACK, true)) {
             Slidr.attach(this);
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarLoginActivity);
 
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         if (savedInstanceState != null) {
-            enableDom = savedInstanceState.getBoolean(ENABLE_DOM_STATE);
             isAgreeToUserAgreement = savedInstanceState.getBoolean(IS_AGREE_TO_USER_AGGREMENT_STATE);
         }
 
-        fab.setOnClickListener(view -> {
-            new MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialogTheme)
-                    .setTitle(R.string.have_trouble_login_title)
-                    .setMessage(R.string.have_trouble_login_message)
-                    .setPositiveButton(R.string.yes, (dialogInterface, i) -> {
-                        enableDom = !enableDom;
-                        ActivityCompat.recreate(this);
-                    })
-                    .setNegativeButton(R.string.no, null)
-                    .show();
-        });
-
-        if (enableDom) {
-            twoFAInfoTextView.setVisibility(View.GONE);
-        }
-
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setDomStorageEnabled(enableDom);
+        binding.webviewLoginActivity.getSettings().setJavaScriptEnabled(true);
 
         Uri baseUri = Uri.parse(APIUtils.OAUTH_URL);
         Uri.Builder uriBuilder = baseUri.buildUpon();
@@ -161,11 +123,17 @@ public class LoginActivity extends BaseActivity {
 
         String url = uriBuilder.toString();
 
+        binding.fabLoginActivity.setOnClickListener(view -> {
+            Intent intent = new Intent(this, LoginChromeCustomTabActivity.class);
+            startActivity(intent);
+            finish();
+        });
+
         CookieManager.getInstance().removeAllCookies(aBoolean -> {
         });
 
-        webView.loadUrl(url);
-        webView.setWebViewClient(new WebViewClient() {
+        binding.webviewLoginActivity.loadUrl(url);
+        binding.webviewLoginActivity.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 if (url.contains("&code=") || url.contains("?code=")) {
@@ -177,11 +145,11 @@ public class LoginActivity extends BaseActivity {
                         Map<String, String> params = new HashMap<>();
                         params.put(APIUtils.GRANT_TYPE_KEY, "authorization_code");
                         params.put("code", authCode);
-                        params.put("redirect_uri", APIUtils.REDIRECT_URI);
+                        params.put(APIUtils.REDIRECT_URI_KEY, APIUtils.REDIRECT_URI);
 
                         RedditAPI api = mRetrofit.create(RedditAPI.class);
                         Call<String> accessTokenCall = api.getAccessToken(APIUtils.getHttpBasicAuthHeader(), params);
-                        accessTokenCall.enqueue(new Callback<String>() {
+                        accessTokenCall.enqueue(new Callback<>() {
                             @Override
                             public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
                                 if (response.isSuccessful()) {
@@ -203,11 +171,11 @@ public class LoginActivity extends BaseActivity {
                                                         mCurrentAccountSharedPreferences.edit().putString(SharedPreferencesUtils.ACCESS_TOKEN, accessToken)
                                                                 .putString(SharedPreferencesUtils.ACCOUNT_NAME, name)
                                                                 .putString(SharedPreferencesUtils.ACCOUNT_IMAGE_URL, profileImageUrl).apply();
+                                                        mCurrentAccountSharedPreferences.edit().remove(SharedPreferencesUtils.SUBSCRIBED_THINGS_SYNC_TIME).apply();
                                                         ParseAndInsertNewAccount.parseAndInsertNewAccount(mExecutor, new Handler(), name, accessToken, refreshToken, profileImageUrl, bannerImageUrl,
                                                                 karma, authCode, mRedditDataRoomDatabase.accountDao(),
                                                                 () -> {
-                                                                    Intent resultIntent = new Intent();
-                                                                    setResult(Activity.RESULT_OK, resultIntent);
+                                                                    EventBus.getDefault().post(new NewUserLoggedInEvent());
                                                                     finish();
                                                                 });
                                                     }
@@ -271,7 +239,7 @@ public class LoginActivity extends BaseActivity {
             TextView messageTextView = new TextView(this);
             int padding = (int) Utils.convertDpToPixel(24, this);
             messageTextView.setPaddingRelative(padding, padding, padding, padding);
-            SpannableString message = new SpannableString(getString(R.string.user_agreement_message, "https://www.redditinc.com/policies/user-agreement-september-12-2021", "https://docile-alligator.github.io"));
+            SpannableString message = new SpannableString(getString(R.string.user_agreement_message, "https://www.redditinc.com/policies/user-agreement", "https://docile-alligator.github.io"));
             Linkify.addLinks(message, Linkify.WEB_URLS);
             messageTextView.setMovementMethod(BetterLinkMovementMethod.newInstance().setOnLinkClickListener(new BetterLinkMovementMethod.OnLinkClickListener() {
                 @Override
@@ -297,7 +265,6 @@ public class LoginActivity extends BaseActivity {
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putBoolean(ENABLE_DOM_STATE, enableDom);
         outState.putBoolean(IS_AGREE_TO_USER_AGGREMENT_STATE, isAgreeToUserAgreement);
     }
 
@@ -307,20 +274,25 @@ public class LoginActivity extends BaseActivity {
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, null, toolbar);
-        twoFAInfoTextView.setTextColor(mCustomThemeWrapper.getPrimaryTextColor());
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutLoginActivity, null, binding.toolbarLoginActivity);
+        binding.twoFaInfOTextViewLoginActivity.setTextColor(mCustomThemeWrapper.getPrimaryTextColor());
         Drawable infoDrawable = Utils.getTintedDrawable(this, R.drawable.ic_info_preference_24dp, mCustomThemeWrapper.getPrimaryIconColor());
-        twoFAInfoTextView.setCompoundDrawablesWithIntrinsicBounds(infoDrawable, null, null, null);
-        applyFABTheme(fab);
+        binding.twoFaInfOTextViewLoginActivity.setCompoundDrawablesWithIntrinsicBounds(infoDrawable, null, null, null);
+        applyFABTheme(binding.fabLoginActivity);
         if (typeface != null) {
-            twoFAInfoTextView.setTypeface(typeface);
+            binding.twoFaInfOTextViewLoginActivity.setTypeface(typeface);
         }
     }
 

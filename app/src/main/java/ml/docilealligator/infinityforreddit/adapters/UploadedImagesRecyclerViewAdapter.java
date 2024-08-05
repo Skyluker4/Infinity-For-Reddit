@@ -17,8 +17,8 @@ import ml.docilealligator.infinityforreddit.activities.BaseActivity;
 
 public class UploadedImagesRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private BaseActivity activity;
-    private ArrayList<UploadedImage> uploadedImages;
-    private ItemClickListener itemClickListener;
+    private final ArrayList<UploadedImage> uploadedImages;
+    private final ItemClickListener itemClickListener;
 
     public UploadedImagesRecyclerViewAdapter(Activity activity, ArrayList<UploadedImage> uploadedImages, ItemClickListener itemClickListener) {
         if (activity instanceof BaseActivity) {
@@ -38,7 +38,7 @@ public class UploadedImagesRecyclerViewAdapter extends RecyclerView.Adapter<Recy
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
         ((UploadedImageViewHolder) holder).imageNameTextView.setText(uploadedImages.get(position).imageName);
-        ((UploadedImageViewHolder) holder).imageUrlTextView.setText(uploadedImages.get(position).imageUrl);
+        ((UploadedImageViewHolder) holder).imageUrlTextView.setText(uploadedImages.get(position).imageUrlOrKey);
     }
 
     @Override

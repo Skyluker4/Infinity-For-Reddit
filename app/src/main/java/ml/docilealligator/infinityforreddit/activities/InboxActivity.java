@@ -15,7 +15,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -23,11 +22,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -39,18 +34,17 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RecyclerViewContentScrollingInterface;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.apis.RedditAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.SwitchAccount;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
-import ml.docilealligator.infinityforreddit.customviews.slidr.widget.SliderPanel;
+import ml.docilealligator.infinityforreddit.databinding.ActivityInboxBinding;
 import ml.docilealligator.infinityforreddit.events.ChangeInboxCountEvent;
 import ml.docilealligator.infinityforreddit.events.PassPrivateMessageEvent;
 import ml.docilealligator.infinityforreddit.events.PassPrivateMessageIndexEvent;
@@ -74,20 +68,6 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
     private static final String NEW_ACCOUNT_NAME_STATE = "NANS";
     private static final int SEARCH_USER_REQUEST_CODE = 1;
 
-    @BindView(R.id.coordinator_layout_inbox_activity)
-    CoordinatorLayout mCoordinatorLayout;
-    @BindView(R.id.appbar_layout_inbox_activity)
-    AppBarLayout mAppBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_inbox_activity)
-    CollapsingToolbarLayout mCollapsingToolbarLayout;
-    @BindView(R.id.toolbar_inbox_activity)
-    Toolbar mToolbar;
-    @BindView(R.id.tab_layout_inbox_activity)
-    TabLayout tabLayout;
-    @BindView(R.id.view_pager_inbox_activity)
-    ViewPager2 viewPager2;
-    @BindView(R.id.fab_inbox_activity)
-    FloatingActionButton fab;
     @Inject
     @Named("oauth")
     Retrofit mOauthRetrofit;
@@ -105,9 +85,8 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
     Executor mExecutor;
     private SectionsPagerAdapter sectionsPagerAdapter;
     private FragmentManager fragmentManager;
-    private String mAccessToken;
-    private String mAccountName;
     private String mNewAccountName;
+    private ActivityInboxBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,9 +94,8 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
 
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_inbox);
-
-        ButterKnife.bind(this);
+        binding = ActivityInboxBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
@@ -131,7 +109,7 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(mAppBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutInboxActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -140,25 +118,22 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(mToolbar);
+                adjustToolbar(binding.toolbarInboxActivity);
 
                 int navBarHeight = getNavBarHeight();
                 if (navBarHeight > 0) {
-                    CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) fab.getLayoutParams();
+                    CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) binding.fabInboxActivity.getLayoutParams();
                     params.bottomMargin += navBarHeight;
-                    fab.setLayoutParams(params);
+                    binding.fabInboxActivity.setLayoutParams(params);
                 }
             }
         }
 
-        mToolbar.setTitle(R.string.inbox);
-        setSupportActionBar(mToolbar);
-        setToolbarGoToTop(mToolbar);
+        binding.toolbarInboxActivity.setTitle(R.string.inbox);
+        setSupportActionBar(binding.toolbarInboxActivity);
+        setToolbarGoToTop(binding.toolbarInboxActivity);
 
         fragmentManager = getSupportFragmentManager();
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
 
         if (savedInstanceState != null) {
             mNewAccountName = savedInstanceState.getString(NEW_ACCOUNT_NAME_STATE);
@@ -167,15 +142,15 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
         }
         getCurrentAccountAndFetchMessage(savedInstanceState);
 
-        viewPager2.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+        binding.viewPagerInboxActivity.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
-                fab.show();
+                binding.fabInboxActivity.show();
             }
         });
 
-        fab.setOnClickListener(view -> {
-            View rootView = getLayoutInflater().inflate(R.layout.dialog_go_to_thing_edit_text, mCoordinatorLayout, false);
+        binding.fabInboxActivity.setOnClickListener(view -> {
+            View rootView = getLayoutInflater().inflate(R.layout.dialog_go_to_thing_edit_text, binding.getRoot(), false);
             TextInputEditText thingEditText = rootView.findViewById(R.id.text_input_edit_text_go_to_thing_edit_text);
             thingEditText.requestFocus();
             Utils.showKeyboard(this, new Handler(), thingEditText);
@@ -219,21 +194,27 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        mCoordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(mAppBarLayout, mCollapsingToolbarLayout, mToolbar);
-        applyTabLayoutTheme(tabLayout);
-        applyFABTheme(fab);
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutInboxActivity,
+                binding.collapsingToolbarLayoutInboxActivity, binding.toolbarInboxActivity);
+        applyTabLayoutTheme(binding.tabLayoutInboxActivity);
+        applyFABTheme(binding.fabInboxActivity);
     }
 
     private void getCurrentAccountAndFetchMessage(Bundle savedInstanceState) {
         if (mNewAccountName != null) {
-            if (mAccountName == null || !mAccountName.equals(mNewAccountName)) {
+            if (accountName.equals(Account.ANONYMOUS_ACCOUNT) || !accountName.equals(mNewAccountName)) {
                 SwitchAccount.switchAccount(mRedditDataRoomDatabase, mCurrentAccountSharedPreferences,
                         mExecutor, new Handler(), mNewAccountName, newAccount -> {
                             EventBus.getDefault().post(new SwitchAccountEvent(getClass().getName()));
@@ -241,7 +222,7 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
 
                             mNewAccountName = null;
                             if (newAccount != null) {
-                                mAccessToken = newAccount.getAccessToken();
+                                accessToken = newAccount.getAccessToken();
                             }
 
                             bindView(savedInstanceState);
@@ -256,7 +237,7 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
 
     private void bindView(Bundle savedInstanceState) {
         sectionsPagerAdapter = new SectionsPagerAdapter(this);
-        viewPager2.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+        binding.viewPagerInboxActivity.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
             public void onPageSelected(int position) {
                 if (position == 0) {
@@ -266,9 +247,9 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
                 }
             }
         });
-        viewPager2.setAdapter(sectionsPagerAdapter);
-        viewPager2.setOffscreenPageLimit(2);
-        new TabLayoutMediator(tabLayout, viewPager2, (tab, position) -> {
+        binding.viewPagerInboxActivity.setAdapter(sectionsPagerAdapter);
+        binding.viewPagerInboxActivity.setOffscreenPageLimit(ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT);
+        new TabLayoutMediator(binding.tabLayoutInboxActivity, binding.viewPagerInboxActivity, (tab, position) -> {
             switch (position) {
                 case 0:
                     Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.notifications));
@@ -279,10 +260,10 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
             }
         }).attach();
         if (savedInstanceState == null && getIntent().getBooleanExtra(EXTRA_VIEW_MESSAGE, false)) {
-            viewPager2.setCurrentItem(1, false);
+            binding.viewPagerInboxActivity.setCurrentItem(1, false);
         }
 
-        fixViewPager2Sensitivity(viewPager2);
+        fixViewPager2Sensitivity(binding.viewPagerInboxActivity);
     }
 
     @Override
@@ -300,9 +281,9 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
             }
             return true;
         } else if (item.getItemId() == R.id.action_read_all_messages_inbox_activity) {
-            if (mAccessToken != null) {
+            if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
                 Toast.makeText(this, R.string.please_wait, Toast.LENGTH_SHORT).show();
-                mOauthRetrofit.create(RedditAPI.class).readAllMessages(APIUtils.getOAuthHeader(mAccessToken))
+                mOauthRetrofit.create(RedditAPI.class).readAllMessages(APIUtils.getOAuthHeader(accessToken))
                         .enqueue(new Callback<>() {
                             @Override
                             public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
@@ -394,12 +375,12 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
 
     @Override
     public void contentScrollUp() {
-        fab.show();
+        binding.fabInboxActivity.show();
     }
 
     @Override
     public void contentScrollDown() {
-        fab.hide();
+        binding.fabInboxActivity.hide();
     }
 
     private class SectionsPagerAdapter extends FragmentStateAdapter {
@@ -410,10 +391,10 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
 
         @Nullable
         private Fragment getCurrentFragment() {
-            if (viewPager2 == null || fragmentManager == null) {
+            if (fragmentManager == null) {
                 return null;
             }
-            return fragmentManager.findFragmentByTag("f" + viewPager2.getCurrentItem());
+            return fragmentManager.findFragmentByTag("f" + binding.viewPagerInboxActivity.getCurrentItem());
         }
 
         void refresh() {
@@ -438,10 +419,10 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
         }
 
         Message getPrivateMessage(int index) {
-            if (viewPager2 == null || fragmentManager == null) {
+            if (fragmentManager == null) {
                 return null;
             }
-            Fragment fragment = fragmentManager.findFragmentByTag("f" + viewPager2.getCurrentItem());
+            Fragment fragment = fragmentManager.findFragmentByTag("f" + binding.viewPagerInboxActivity.getCurrentItem());
             if (fragment instanceof InboxFragment) {
                 return ((InboxFragment) fragment).getMessageByIndex(index);
             }
@@ -454,14 +435,12 @@ public class InboxActivity extends BaseActivity implements ActivityToolbarInterf
             if (position == 0) {
                 InboxFragment fragment = new InboxFragment();
                 Bundle bundle = new Bundle();
-                bundle.putString(InboxFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
                 bundle.putString(InboxFragment.EXTRA_MESSAGE_WHERE, FetchMessage.WHERE_INBOX);
                 fragment.setArguments(bundle);
                 return fragment;
             } else {
                 InboxFragment fragment = new InboxFragment();
                 Bundle bundle = new Bundle();
-                bundle.putString(InboxFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
                 bundle.putString(InboxFragment.EXTRA_MESSAGE_WHERE, FetchMessage.WHERE_MESSAGES);
                 fragment.setArguments(bundle);
                 return fragment;

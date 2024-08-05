@@ -1,7 +1,6 @@
 package ml.docilealligator.infinityforreddit.activities;
 
 import android.content.ActivityNotFoundException;
-import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
@@ -15,7 +14,6 @@ import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -47,7 +45,6 @@ import io.noties.markwon.Markwon;
 import io.noties.markwon.MarkwonConfiguration;
 import io.noties.markwon.MarkwonPlugin;
 import io.noties.markwon.core.MarkwonTheme;
-import io.noties.markwon.recycler.MarkwonAdapter;
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
 import ml.docilealligator.infinityforreddit.AnyAccountAccessTokenAuthenticator;
 import ml.docilealligator.infinityforreddit.Infinity;
@@ -65,7 +62,13 @@ import ml.docilealligator.infinityforreddit.comment.SendComment;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.LinearLayoutManagerBugFixed;
 import ml.docilealligator.infinityforreddit.databinding.ActivityCommentBinding;
+import ml.docilealligator.infinityforreddit.events.ChangeNetworkStatusEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
+import ml.docilealligator.infinityforreddit.markdown.CustomMarkwonAdapter;
+import ml.docilealligator.infinityforreddit.markdown.EmoteCloseBracketInlineProcessor;
+import ml.docilealligator.infinityforreddit.markdown.EmotePlugin;
+import ml.docilealligator.infinityforreddit.markdown.ImageAndGifEntry;
+import ml.docilealligator.infinityforreddit.markdown.ImageAndGifPlugin;
 import ml.docilealligator.infinityforreddit.markdown.MarkdownUtils;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
@@ -81,6 +84,7 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
     public static final String EXTRA_PARENT_FULLNAME_KEY = "EPFK";
     public static final String EXTRA_PARENT_DEPTH_KEY = "EPDK";
     public static final String EXTRA_PARENT_POSITION_KEY = "EPPK";
+    public static final String EXTRA_SUBREDDIT_NAME_KEY = "ESNK";
     public static final String EXTRA_IS_REPLYING_KEY = "EIRK";
     public static final String RETURN_EXTRA_COMMENT_DATA_KEY = "RECDK";
     public static final int WRITE_COMMENT_REQUEST_CODE = 1;
@@ -114,7 +118,6 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
     Executor mExecutor;
     private RequestManager mGlide;
     private Account selectedAccount;
-    private String mAccessToken;
     private String parentFullname;
     private int parentDepth;
     private int parentPosition;
@@ -132,6 +135,8 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
     @ColorInt
     private int parentSpoilerBackgroundColor;
     private ActivityCommentBinding binding;
+    private EmotePlugin emotePlugin;
+    private ImageAndGifEntry imageAndGifEntry;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -153,8 +158,9 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
             addOnOffsetChangedListener(binding.commentAppbarLayout);
         }
 
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        if (mAccessToken == null) {
+        mGlide = Glide.with(this);
+
+        if (accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
             finish();
             return;
         }
@@ -185,9 +191,11 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
                     }
                     textView.setTextColor(parentTextColor);
                     textView.setOnLongClickListener(view -> {
-                        Utils.hideKeyboard(CommentActivity.this);
-                        CopyTextBottomSheetFragment.show(getSupportFragmentManager(),
-                                parentBody, parentBodyMarkdown);
+                        if (textView.getSelectionStart() == -1 && textView.getSelectionEnd() == -1) {
+                            Utils.hideKeyboard(CommentActivity.this);
+                            CopyTextBottomSheetFragment.show(getSupportFragmentManager(),
+                                    parentBody, parentBodyMarkdown);
+                        }
                         return true;
                     });
                 }
@@ -207,9 +215,39 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
                     builder.linkColor(linkColor);
                 }
             };
+            EmoteCloseBracketInlineProcessor emoteCloseBracketInlineProcessor = new EmoteCloseBracketInlineProcessor();
+            emotePlugin = EmotePlugin.create(this, SharedPreferencesUtils.EMBEDDED_MEDIA_ALL,
+                    mediaMetadata -> {
+                        Intent imageIntent = new Intent(this, ViewImageOrGifActivity.class);
+                        if (mediaMetadata.isGIF) {
+                            imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_GIF_URL_KEY, mediaMetadata.original.url);
+                        } else {
+                            imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_IMAGE_URL_KEY, mediaMetadata.original.url);
+                        }
+                        imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_SUBREDDIT_OR_USERNAME_KEY, intent.getStringExtra(EXTRA_SUBREDDIT_NAME_KEY));
+                        imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_FILE_NAME_KEY, mediaMetadata.fileName);
+                    });
+            ImageAndGifPlugin imageAndGifPlugin = new ImageAndGifPlugin();
+            imageAndGifEntry = new ImageAndGifEntry(this, mGlide, SharedPreferencesUtils.EMBEDDED_MEDIA_ALL, mediaMetadata -> {
+                Intent imageIntent = new Intent(this, ViewImageOrGifActivity.class);
+                if (mediaMetadata.isGIF) {
+                    imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_GIF_URL_KEY, mediaMetadata.original.url);
+                } else {
+                    imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_IMAGE_URL_KEY, mediaMetadata.original.url);
+                }
+                imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_SUBREDDIT_OR_USERNAME_KEY, intent.getStringExtra(EXTRA_SUBREDDIT_NAME_KEY));
+                imageIntent.putExtra(ViewImageOrGifActivity.EXTRA_FILE_NAME_KEY, mediaMetadata.fileName);
+            });
             Markwon postBodyMarkwon = MarkdownUtils.createFullRedditMarkwon(this,
-                    miscPlugin, parentTextColor, parentSpoilerBackgroundColor, null);
-            MarkwonAdapter markwonAdapter = MarkdownUtils.createTablesAdapter();
+                    miscPlugin, emoteCloseBracketInlineProcessor, emotePlugin, imageAndGifPlugin, parentTextColor,
+                    parentSpoilerBackgroundColor, null);
+            CustomMarkwonAdapter markwonAdapter = MarkdownUtils.createCustomTablesAndImagesAdapter(this, imageAndGifEntry);
+            markwonAdapter.setOnLongClickListener(view -> {
+                Utils.hideKeyboard(CommentActivity.this);
+                CopyTextBottomSheetFragment.show(getSupportFragmentManager(),
+                        parentBody, parentBodyMarkdown);
+                return true;
+            });
             binding.commentContentMarkdownView.setLayoutManager(new LinearLayoutManagerBugFixed(this));
             binding.commentContentMarkdownView.setAdapter(markwonAdapter);
             markwonAdapter.setMarkdown(postBodyMarkwon, parentBodyMarkdown);
@@ -224,8 +262,6 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
         }
 
         setSupportActionBar(binding.commentToolbar);
-
-        mGlide = Glide.with(this);
 
         if (savedInstanceState != null) {
             selectedAccount = savedInstanceState.getParcelable(SELECTED_ACCOUNT_STATE);
@@ -247,24 +283,25 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
         }
 
         MarkdownBottomBarRecyclerViewAdapter adapter = new MarkdownBottomBarRecyclerViewAdapter(
-                mCustomThemeWrapper, new MarkdownBottomBarRecyclerViewAdapter.ItemClickListener() {
-            @Override
-            public void onClick(int item) {
-                MarkdownBottomBarRecyclerViewAdapter.bindEditTextWithItemClickListener(
-                        CommentActivity.this, binding.commentCommentEditText, item);
-            }
+                mCustomThemeWrapper, true,
+                new MarkdownBottomBarRecyclerViewAdapter.ItemClickListener() {
+                    @Override
+                    public void onClick(int item) {
+                        MarkdownBottomBarRecyclerViewAdapter.bindEditTextWithItemClickListener(
+                                CommentActivity.this, binding.commentCommentEditText, item);
+                    }
 
-            @Override
-            public void onUploadImage() {
-                Utils.hideKeyboard(CommentActivity.this);
-                UploadedImagesBottomSheetFragment fragment = new UploadedImagesBottomSheetFragment();
-                Bundle arguments = new Bundle();
-                arguments.putParcelableArrayList(UploadedImagesBottomSheetFragment.EXTRA_UPLOADED_IMAGES,
-                        uploadedImages);
-                fragment.setArguments(arguments);
-                fragment.show(getSupportFragmentManager(), fragment.getTag());
-            }
-        });
+                    @Override
+                    public void onUploadImage() {
+                        Utils.hideKeyboard(CommentActivity.this);
+                        UploadedImagesBottomSheetFragment fragment = new UploadedImagesBottomSheetFragment();
+                        Bundle arguments = new Bundle();
+                        arguments.putParcelableArrayList(UploadedImagesBottomSheetFragment.EXTRA_UPLOADED_IMAGES,
+                                uploadedImages);
+                        fragment.setArguments(arguments);
+                        fragment.show(getSupportFragmentManager(), fragment.getTag());
+                    }
+                });
 
         binding.commentMarkdownBottomBarRecyclerView.setLayoutManager(new LinearLayoutManagerBugFixed(this,
                 LinearLayoutManagerBugFixed.HORIZONTAL, false));
@@ -311,7 +348,12 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
@@ -362,7 +404,7 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
             return true;
         } else if (itemId == R.id.action_preview_comment_activity) {
             Intent intent = new Intent(this, FullMarkdownActivity.class);
-            intent.putExtra(FullMarkdownActivity.EXTRA_COMMENT_MARKDOWN, binding.commentCommentEditText.getText().toString());
+            intent.putExtra(FullMarkdownActivity.EXTRA_MARKDOWN, binding.commentCommentEditText.getText().toString());
             intent.putExtra(FullMarkdownActivity.EXTRA_SUBMIT_POST, true);
             startActivityForResult(intent, MARKDOWN_PREVIEW_REQUEST_CODE);
         } else if (itemId == R.id.action_send_comment_activity) {
@@ -396,8 +438,8 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
                     .connectionPool(new ConnectionPool(0, 1, TimeUnit.NANOSECONDS))
                     .build())
                     .build();
-            SendComment.sendComment(mExecutor, new Handler(), binding.commentCommentEditText.getText().toString(),
-                    parentFullname, parentDepth, newAuthenticatorOauthRetrofit, selectedAccount,
+            SendComment.sendComment(this, mExecutor, new Handler(), binding.commentCommentEditText.getText().toString(),
+                    parentFullname, parentDepth, uploadedImages, newAuthenticatorOauthRetrofit, selectedAccount,
                     new SendComment.SendCommentListener() {
                         @Override
                         public void sendCommentSuccess(Comment comment) {
@@ -426,7 +468,7 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
                                 item.getIcon().setAlpha(255);
                             }
 
-                            if (errorMessage == null || !errorMessage.equals("")) {
+                            if (errorMessage == null || errorMessage.isEmpty()) {
                                 Snackbar.make(binding.commentCoordinatorLayout, R.string.send_comment_failed, Snackbar.LENGTH_SHORT).show();
                             } else {
                                 Snackbar.make(binding.commentCoordinatorLayout, errorMessage, Snackbar.LENGTH_SHORT).show();
@@ -456,10 +498,10 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
                     return;
                 }
                 Utils.uploadImageToReddit(this, mExecutor, mOauthRetrofit, mUploadMediaRetrofit,
-                        mAccessToken, binding.commentCommentEditText, binding.commentCoordinatorLayout, data.getData(), uploadedImages);
+                        accessToken, binding.commentCommentEditText, binding.commentCoordinatorLayout, data.getData(), uploadedImages);
             } else if (requestCode == CAPTURE_IMAGE_REQUEST_CODE) {
                 Utils.uploadImageToReddit(this, mExecutor, mOauthRetrofit, mUploadMediaRetrofit,
-                        mAccessToken, binding.commentCommentEditText, binding.commentCoordinatorLayout, capturedImageUri, uploadedImages);
+                        accessToken, binding.commentCommentEditText, binding.commentCoordinatorLayout, capturedImageUri, uploadedImages);
             } else if (requestCode == MARKDOWN_PREVIEW_REQUEST_CODE) {
                 sendComment(mMenu == null ? null : mMenu.findItem(R.id.action_send_comment_activity));
             }
@@ -490,6 +532,20 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
         finish();
     }
 
+    @Subscribe
+    public void onChangeNetworkStatusEvent(ChangeNetworkStatusEvent changeNetworkStatusEvent) {
+        String dataSavingMode = mSharedPreferences.getString(SharedPreferencesUtils.DATA_SAVING_MODE, SharedPreferencesUtils.DATA_SAVING_MODE_OFF);
+        if (dataSavingMode.equals(SharedPreferencesUtils.DATA_SAVING_MODE_ONLY_ON_CELLULAR_DATA)) {
+            if (emotePlugin != null) {
+                emotePlugin.setDataSavingMode(changeNetworkStatusEvent.connectedNetwork == Utils.NETWORK_TYPE_CELLULAR);
+            }
+
+            if (imageAndGifEntry != null) {
+                imageAndGifEntry.setDataSavingMode(changeNetworkStatusEvent.connectedNetwork == Utils.NETWORK_TYPE_CELLULAR);
+            }
+        }
+    }
+
     @Override
     public void uploadImage() {
         Intent intent = new Intent();
@@ -503,7 +559,7 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
     public void captureImage() {
         Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         try {
-            capturedImageUri = FileProvider.getUriForFile(this, "ml.docilealligator.infinityforreddit.provider",
+            capturedImageUri = FileProvider.getUriForFile(this, getPackageName() + ".provider",
                     File.createTempFile("captured_image", ".jpg", getExternalFilesDir(Environment.DIRECTORY_PICTURES)));
             pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, capturedImageUri);
             startActivityForResult(pictureIntent, CAPTURE_IMAGE_REQUEST_CODE);
@@ -518,9 +574,16 @@ public class CommentActivity extends BaseActivity implements UploadImageEnabledA
     public void insertImageUrl(UploadedImage uploadedImage) {
         int start = Math.max(binding.commentCommentEditText.getSelectionStart(), 0);
         int end = Math.max(binding.commentCommentEditText.getSelectionEnd(), 0);
-        binding.commentCommentEditText.getText().replace(Math.min(start, end), Math.max(start, end),
-                "[" + uploadedImage.imageName + "](" + uploadedImage.imageUrl + ")",
-                0, "[]()".length() + uploadedImage.imageName.length() + uploadedImage.imageUrl.length());
+        int realStart = Math.min(start, end);
+        if (realStart > 0 && binding.commentCommentEditText.getText().toString().charAt(realStart - 1) != '\n') {
+            binding.commentCommentEditText.getText().replace(realStart, Math.max(start, end),
+                    "\n![](" + uploadedImage.imageUrlOrKey + ")\n",
+                    0, "\n![]()\n".length() + uploadedImage.imageUrlOrKey.length());
+        } else {
+            binding.commentCommentEditText.getText().replace(realStart, Math.max(start, end),
+                    "![](" + uploadedImage.imageUrlOrKey + ")\n",
+                    0, "![]()\n".length() + uploadedImage.imageUrlOrKey.length());
+        }
     }
 
     @Override

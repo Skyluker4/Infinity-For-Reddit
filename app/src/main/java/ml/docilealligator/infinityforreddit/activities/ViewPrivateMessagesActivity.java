@@ -6,20 +6,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.transition.AutoTransition;
 import androidx.transition.TransitionManager;
 
 import com.evernote.android.state.State;
-import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.snackbar.Snackbar;
 import com.livefront.bridge.Bridge;
 
@@ -32,8 +24,6 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
@@ -42,13 +32,13 @@ import ml.docilealligator.infinityforreddit.adapters.PrivateMessagesDetailRecycl
 import ml.docilealligator.infinityforreddit.asynctasks.LoadUserData;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.LinearLayoutManagerBugFixed;
+import ml.docilealligator.infinityforreddit.databinding.ActivityViewPrivateMessagesBinding;
 import ml.docilealligator.infinityforreddit.events.PassPrivateMessageEvent;
 import ml.docilealligator.infinityforreddit.events.PassPrivateMessageIndexEvent;
 import ml.docilealligator.infinityforreddit.events.RepliedToPrivateMessageEvent;
 import ml.docilealligator.infinityforreddit.message.Message;
 import ml.docilealligator.infinityforreddit.message.ReadMessage;
 import ml.docilealligator.infinityforreddit.message.ReplyMessage;
-import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import retrofit2.Retrofit;
 
 public class ViewPrivateMessagesActivity extends BaseActivity implements ActivityToolbarInterface {
@@ -56,28 +46,13 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
     public static final String EXTRA_PRIVATE_MESSAGE_INDEX = "EPM";
     public static final String EXTRA_MESSAGE_POSITION = "EMP";
     private static final String USER_AVATAR_STATE = "UAS";
-    @BindView(R.id.coordinator_layout_view_private_messages_activity)
-    CoordinatorLayout mCoordinatorLayout;
-    @BindView(R.id.appbar_layout_view_private_messages_activity)
-    AppBarLayout mAppBarLayout;
-    @BindView(R.id.toolbar_view_private_messages_activity)
-    Toolbar mToolbar;
-    @BindView(R.id.recycler_view_view_private_messages)
-    RecyclerView mRecyclerView;
-    @BindView(R.id.edit_text_divider_view_private_messages_activity)
-    View mDivider;
-    @BindView(R.id.edit_text_view_private_messages_activity)
-    EditText mEditText;
-    @BindView(R.id.send_image_view_view_private_messages_activity)
-    ImageView mSendImageView;
-    @BindView(R.id.edit_text_wrapper_linear_layout_view_private_messages_activity)
-    LinearLayout mEditTextLinearLayout;
-    @Inject
-    @Named("oauth")
-    Retrofit mOauthRetrofit;
+
     @Inject
     @Named("no_oauth")
     Retrofit mRetrofit;
+    @Inject
+    @Named("oauth")
+    Retrofit mOauthRetrofit;
     @Inject
     RedditDataRoomDatabase mRedditDataRoomDatabase;
     @Inject
@@ -96,14 +71,13 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
     Message privateMessage;
     @State
     Message replyTo;
-    private String mAccessToken;
-    private String mAccountName;
     private String mUserAvatar;
     private ArrayList<ProvideUserAvatarCallback> mProvideUserAvatarCallbacks;
     private boolean isLoadingUserAvatar = false;
     private boolean isSendingMessage = false;
     private int mSecondaryTextColor;
     private int mSendMessageIconColor;
+    private ActivityViewPrivateMessagesBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -113,27 +87,23 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
 
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_view_private_messages);
+        binding = ActivityViewPrivateMessagesBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         Bridge.restoreInstanceState(this, savedInstanceState);
-
-        ButterKnife.bind(this);
 
         EventBus.getDefault().register(this);
 
         applyCustomTheme();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(mAppBarLayout);
+            addOnOffsetChangedListener(binding.appbarLayoutViewPrivateMessagesActivity);
         }
 
-        setSupportActionBar(mToolbar);
-        setToolbarGoToTop(mToolbar);
+        setSupportActionBar(binding.toolbarViewPrivateMessagesActivity);
+        setToolbarGoToTop(binding.toolbarViewPrivateMessagesActivity);
 
         mProvideUserAvatarCallbacks = new ArrayList<>();
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
 
         if (savedInstanceState != null) {
             mUserAvatar = savedInstanceState.getString(USER_AVATAR_STATE);
@@ -149,9 +119,9 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
 
     private void bindView() {
         if (privateMessage != null) {
-            if (privateMessage.getAuthor().equals(mAccountName)) {
+            if (privateMessage.getAuthor().equals(accountName)) {
                 setTitle(privateMessage.getDestination());
-                mToolbar.setOnClickListener(view -> {
+                binding.toolbarViewPrivateMessagesActivity.setOnClickListener(view -> {
                     if (privateMessage.isDestinationDeleted()) {
                         return;
                     }
@@ -161,7 +131,7 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
                 });
             } else {
                 setTitle(privateMessage.getAuthor());
-                mToolbar.setOnClickListener(view -> {
+                binding.toolbarViewPrivateMessagesActivity.setOnClickListener(view -> {
                     if (privateMessage.isAuthorDeleted()) {
                         return;
                     }
@@ -172,15 +142,15 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
             }
         }
         mAdapter = new PrivateMessagesDetailRecyclerViewAdapter(this, mSharedPreferences,
-                getResources().getConfiguration().locale, privateMessage, mAccountName, mCustomThemeWrapper);
+                getResources().getConfiguration().locale, privateMessage, accountName, mCustomThemeWrapper);
         mLinearLayoutManager = new LinearLayoutManagerBugFixed(this);
         mLinearLayoutManager.setStackFromEnd(true);
-        mRecyclerView.setLayoutManager(mLinearLayoutManager);
-        mRecyclerView.setAdapter(mAdapter);
+        binding.recyclerViewViewPrivateMessages.setLayoutManager(mLinearLayoutManager);
+        binding.recyclerViewViewPrivateMessages.setAdapter(mAdapter);
         goToBottom();
-        mSendImageView.setOnClickListener(view -> {
+        binding.sendImageViewViewPrivateMessagesActivity.setOnClickListener(view -> {
             if (!isSendingMessage) {
-                if (!mEditText.getText().toString().equals("")) {
+                if (!binding.editTextViewPrivateMessagesActivity.getText().toString().equals("")) {
                     //Send Message
                     if (privateMessage != null) {
                         ArrayList<Message> replies = privateMessage.getReplies();
@@ -188,9 +158,9 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
                             replyTo = privateMessage;
                         }
                         isSendingMessage = true;
-                        mSendImageView.setColorFilter(mSecondaryTextColor, android.graphics.PorterDuff.Mode.SRC_IN);
-                        ReplyMessage.replyMessage(mEditText.getText().toString(), replyTo.getFullname(),
-                                getResources().getConfiguration().locale, mOauthRetrofit, mAccessToken,
+                        binding.sendImageViewViewPrivateMessagesActivity.setColorFilter(mSecondaryTextColor, android.graphics.PorterDuff.Mode.SRC_IN);
+                        ReplyMessage.replyMessage(binding.editTextViewPrivateMessagesActivity.getText().toString(), replyTo.getFullname(),
+                                getResources().getConfiguration().locale, mOauthRetrofit, accessToken,
                                 new ReplyMessage.ReplyMessageListener() {
                                     @Override
                                     public void replyMessageSuccess(Message message) {
@@ -198,8 +168,8 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
                                             mAdapter.addReply(message);
                                         }
                                         goToBottom();
-                                        mEditText.setText("");
-                                        mSendImageView.setColorFilter(mSendMessageIconColor, android.graphics.PorterDuff.Mode.SRC_IN);
+                                        binding.editTextViewPrivateMessagesActivity.setText("");
+                                        binding.sendImageViewViewPrivateMessagesActivity.setColorFilter(mSendMessageIconColor, android.graphics.PorterDuff.Mode.SRC_IN);
                                         isSendingMessage = false;
                                         EventBus.getDefault().post(new RepliedToPrivateMessageEvent(message, getIntent().getIntExtra(EXTRA_MESSAGE_POSITION, -1)));
                                     }
@@ -207,11 +177,11 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
                                     @Override
                                     public void replyMessageFailed(String errorMessage) {
                                         if (errorMessage != null && !errorMessage.equals("")) {
-                                            Snackbar.make(mCoordinatorLayout, errorMessage, Snackbar.LENGTH_LONG).show();
+                                            Snackbar.make(binding.getRoot(), errorMessage, Snackbar.LENGTH_LONG).show();
                                         } else {
-                                            Snackbar.make(mCoordinatorLayout, R.string.reply_message_failed, Snackbar.LENGTH_LONG).show();
+                                            Snackbar.make(binding.getRoot(), R.string.reply_message_failed, Snackbar.LENGTH_LONG).show();
                                         }
-                                        mSendImageView.setColorFilter(mSendMessageIconColor, android.graphics.PorterDuff.Mode.SRC_IN);
+                                        binding.sendImageViewViewPrivateMessagesActivity.setColorFilter(mSendMessageIconColor, android.graphics.PorterDuff.Mode.SRC_IN);
                                         isSendingMessage = false;
                                     }
                                 });
@@ -228,7 +198,7 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
                         }
                         if (fullnames.length() > 0) {
                             fullnames.deleteCharAt(fullnames.length() - 1);
-                            ReadMessage.readMessage(mOauthRetrofit, mAccessToken, fullnames.toString(),
+                            ReadMessage.readMessage(mOauthRetrofit, accessToken, fullnames.toString(),
                                     new ReadMessage.ReadMessageListener() {
                                         @Override
                                         public void readSuccess() {}
@@ -263,7 +233,7 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
     }
 
     public void delayTransition() {
-        TransitionManager.beginDelayedTransition(mRecyclerView, new AutoTransition());
+        TransitionManager.beginDelayedTransition(binding.recyclerViewViewPrivateMessages, new AutoTransition());
     }
 
     private void goToBottom() {
@@ -297,28 +267,34 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return mSharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        mCoordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(mAppBarLayout, null, mToolbar);
-        mDivider.setBackgroundColor(mCustomThemeWrapper.getDividerColor());
-        mEditText.setTextColor(mCustomThemeWrapper.getPrimaryTextColor());
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutViewPrivateMessagesActivity,
+                null, binding.toolbarViewPrivateMessagesActivity);
+        binding.editTextDividerViewPrivateMessagesActivity.setBackgroundColor(mCustomThemeWrapper.getDividerColor());
+        binding.editTextViewPrivateMessagesActivity.setTextColor(mCustomThemeWrapper.getPrimaryTextColor());
         mSecondaryTextColor = mCustomThemeWrapper.getSecondaryTextColor();
-        mEditText.setHintTextColor(mSecondaryTextColor);
-        mEditTextLinearLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        binding.editTextViewPrivateMessagesActivity.setHintTextColor(mSecondaryTextColor);
+        binding.editTextWrapperLinearLayoutViewPrivateMessagesActivity.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
         mSendMessageIconColor = mCustomThemeWrapper.getSendMessageIconColor();
-        mSendImageView.setColorFilter(mSendMessageIconColor, android.graphics.PorterDuff.Mode.SRC_IN);
+        binding.sendImageViewViewPrivateMessagesActivity.setColorFilter(mSendMessageIconColor, android.graphics.PorterDuff.Mode.SRC_IN);
         if (typeface != null) {
-            mEditText.setTypeface(typeface);
+            binding.editTextViewPrivateMessagesActivity.setTypeface(typeface);
         }
     }
 
@@ -333,10 +309,10 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
     public void onPassPrivateMessageEvent(PassPrivateMessageEvent passPrivateMessageEvent) {
         privateMessage = passPrivateMessageEvent.message;
         if (privateMessage != null) {
-            if (privateMessage.getAuthor().equals(mAccountName)) {
+            if (privateMessage.getAuthor().equals(accountName)) {
                 if (privateMessage.getReplies() != null) {
                     for (int i = privateMessage.getReplies().size() - 1; i >= 0; i--) {
-                        if (!privateMessage.getReplies().get(i).getAuthor().equals(mAccountName)) {
+                        if (!privateMessage.getReplies().get(i).getAuthor().equals(accountName)) {
                             replyTo = privateMessage.getReplies().get(i);
                             break;
                         }

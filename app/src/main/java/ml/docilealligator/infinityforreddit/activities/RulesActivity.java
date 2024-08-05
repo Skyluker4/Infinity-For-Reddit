@@ -9,16 +9,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -29,51 +21,35 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.FetchRules;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.Rule;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.RulesRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
-import ml.docilealligator.infinityforreddit.customviews.slidr.model.SlidrInterface;
 import ml.docilealligator.infinityforreddit.customviews.slidr.widget.SliderPanel;
+import ml.docilealligator.infinityforreddit.databinding.ActivityRulesBinding;
+import ml.docilealligator.infinityforreddit.events.ChangeNetworkStatusEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
+import ml.docilealligator.infinityforreddit.utils.Utils;
 import retrofit2.Retrofit;
 
 public class RulesActivity extends BaseActivity {
 
     static final String EXTRA_SUBREDDIT_NAME = "ESN";
 
-    @BindView(R.id.coordinator_layout_rules_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_rules_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_rules_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_rules_activity)
-    Toolbar toolbar;
-    @BindView(R.id.progress_bar_rules_activity)
-    ProgressBar progressBar;
-    @BindView(R.id.recycler_view_rules_activity)
-    RecyclerView recyclerView;
-    @BindView(R.id.error_text_view_rules_activity)
-    TextView errorTextView;
     @Inject
     @Named("no_oauth")
     Retrofit mRetrofit;
     @Inject
     @Named("oauth")
     Retrofit mOauthRetrofit;
-
-    private String mAccessToken;
     @Inject
     @Named("current_account")
     SharedPreferences mCurrentAccountSharedPreferences;
-
     @Inject
     @Named("default")
     SharedPreferences mSharedPreferences;
@@ -83,6 +59,7 @@ public class RulesActivity extends BaseActivity {
     Executor mExecutor;
     private String mSubredditName;
     private RulesRecyclerViewAdapter mAdapter;
+    private ActivityRulesBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -90,9 +67,8 @@ public class RulesActivity extends BaseActivity {
 
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_rules);
-
-        ButterKnife.bind(this);
+        binding = ActivityRulesBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
@@ -107,7 +83,7 @@ public class RulesActivity extends BaseActivity {
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(appBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutRulesActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -116,44 +92,44 @@ public class RulesActivity extends BaseActivity {
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(toolbar);
+                adjustToolbar(binding.toolbarRulesActivity);
 
                 int navBarHeight = getNavBarHeight();
                 if (navBarHeight > 0) {
-                    recyclerView.setPadding(0, 0, 0, navBarHeight);
+                    binding.recyclerViewRulesActivity.setPadding(0, 0, 0, navBarHeight);
                 }
             }
         }
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
 
-        appBarLayout.setBackgroundColor(mCustomThemeWrapper.getColorPrimary());
-        setSupportActionBar(toolbar);
+        binding.appbarLayoutRulesActivity.setBackgroundColor(mCustomThemeWrapper.getColorPrimary());
+        setSupportActionBar(binding.toolbarRulesActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         mSubredditName = getIntent().getExtras().getString(EXTRA_SUBREDDIT_NAME);
 
-        mAdapter = new RulesRecyclerViewAdapter(this, mCustomThemeWrapper, sliderPanel);
-        recyclerView.setAdapter(mAdapter);
+        mAdapter = new RulesRecyclerViewAdapter(this, mCustomThemeWrapper, sliderPanel, mSubredditName);
+        binding.recyclerViewRulesActivity.setAdapter(mAdapter);
 
-        FetchRules.fetchRules(mExecutor, new Handler(), mAccessToken == null ? mRetrofit : mOauthRetrofit, mAccessToken, mSubredditName, new FetchRules.FetchRulesListener() {
-            @Override
-            public void success(ArrayList<Rule> rules) {
-                progressBar.setVisibility(View.GONE);
-                if (rules == null || rules.size() == 0) {
-                    errorTextView.setVisibility(View.VISIBLE);
-                    errorTextView.setText(R.string.no_rule);
-                    errorTextView.setOnClickListener(view -> {
-                    });
-                }
-                mAdapter.changeDataset(rules);
-            }
+        FetchRules.fetchRules(mExecutor, new Handler(),
+                accountName.equals(Account.ANONYMOUS_ACCOUNT) ? mRetrofit : mOauthRetrofit,
+                accessToken, accountName, mSubredditName, new FetchRules.FetchRulesListener() {
+                    @Override
+                    public void success(ArrayList<Rule> rules) {
+                        binding.progressBarRulesActivity.setVisibility(View.GONE);
+                        if (rules == null || rules.size() == 0) {
+                            binding.errorTextViewRulesActivity.setVisibility(View.VISIBLE);
+                            binding.errorTextViewRulesActivity.setText(R.string.no_rule);
+                            binding.errorTextViewRulesActivity.setOnClickListener(view -> {
+                            });
+                        }
+                        mAdapter.changeDataset(rules);
+                    }
 
-            @Override
-            public void failed() {
-                displayError();
-            }
-        });
-
+                    @Override
+                    public void failed() {
+                        displayError();
+                    }
+                });
     }
 
     @Override
@@ -162,36 +138,44 @@ public class RulesActivity extends BaseActivity {
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
-        progressBar.setIndeterminateTintList(ColorStateList.valueOf(mCustomThemeWrapper.getColorAccent()));
-        errorTextView.setTextColor(mCustomThemeWrapper.getSecondaryTextColor());
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutRulesActivity,
+                binding.collapsingToolbarLayoutRulesActivity, binding.toolbarRulesActivity);
+        binding.progressBarRulesActivity.setIndeterminateTintList(ColorStateList.valueOf(mCustomThemeWrapper.getColorAccent()));
+        binding.errorTextViewRulesActivity.setTextColor(mCustomThemeWrapper.getSecondaryTextColor());
         if (typeface != null) {
-            errorTextView.setTypeface(typeface);
+            binding.errorTextViewRulesActivity.setTypeface(typeface);
         }
     }
 
     private void displayError() {
-        progressBar.setVisibility(View.GONE);
-        errorTextView.setVisibility(View.VISIBLE);
-        errorTextView.setText(R.string.error_loading_rules);
-        errorTextView.setOnClickListener(view -> {
-            progressBar.setVisibility(View.VISIBLE);
-            errorTextView.setVisibility(View.GONE);
-            FetchRules.fetchRules(mExecutor, new Handler(), mAccessToken == null ? mRetrofit : mOauthRetrofit, mAccessToken, mSubredditName, new FetchRules.FetchRulesListener() {
+        binding.progressBarRulesActivity.setVisibility(View.GONE);
+        binding.errorTextViewRulesActivity.setVisibility(View.VISIBLE);
+        binding.errorTextViewRulesActivity.setText(R.string.error_loading_rules);
+        binding.errorTextViewRulesActivity.setOnClickListener(view -> {
+            binding.progressBarRulesActivity.setVisibility(View.VISIBLE);
+            binding.errorTextViewRulesActivity.setVisibility(View.GONE);
+            FetchRules.fetchRules(mExecutor, new Handler(),
+                    accountName.equals(Account.ANONYMOUS_ACCOUNT) ? mRetrofit : mOauthRetrofit,
+                    accessToken, accountName, mSubredditName, new FetchRules.FetchRulesListener() {
                 @Override
                 public void success(ArrayList<Rule> rules) {
-                    progressBar.setVisibility(View.GONE);
+                    binding.progressBarRulesActivity.setVisibility(View.GONE);
                     if (rules == null || rules.size() == 0) {
-                        errorTextView.setVisibility(View.VISIBLE);
-                        errorTextView.setText(R.string.no_rule);
-                        errorTextView.setOnClickListener(view -> {
+                        binding.errorTextViewRulesActivity.setVisibility(View.VISIBLE);
+                        binding.errorTextViewRulesActivity.setText(R.string.no_rule);
+                        binding.errorTextViewRulesActivity.setOnClickListener(view -> {
                         });
                     }
                     mAdapter.changeDataset(rules);
@@ -224,5 +208,13 @@ public class RulesActivity extends BaseActivity {
     @Subscribe
     public void onAccountSwitchEvent(SwitchAccountEvent event) {
         finish();
+    }
+
+    @Subscribe
+    public void onChangeNetworkStatusEvent(ChangeNetworkStatusEvent changeNetworkStatusEvent) {
+        String dataSavingMode = mSharedPreferences.getString(SharedPreferencesUtils.DATA_SAVING_MODE, SharedPreferencesUtils.DATA_SAVING_MODE_OFF);
+        if (mAdapter != null && dataSavingMode.equals(SharedPreferencesUtils.DATA_SAVING_MODE_ONLY_ON_CELLULAR_DATA)) {
+            mAdapter.setDataSavingMode(changeNetworkStatusEvent.connectedNetwork == Utils.NETWORK_TYPE_CELLULAR);
+        }
     }
 }

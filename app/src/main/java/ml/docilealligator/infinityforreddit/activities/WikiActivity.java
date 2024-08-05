@@ -10,20 +10,12 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -33,15 +25,12 @@ import org.json.JSONObject;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import io.noties.markwon.AbstractMarkwonPlugin;
 import io.noties.markwon.Markwon;
 import io.noties.markwon.MarkwonConfiguration;
 import io.noties.markwon.MarkwonPlugin;
 import io.noties.markwon.core.MarkwonTheme;
 import io.noties.markwon.recycler.MarkwonAdapter;
-import me.saket.bettermovementmethod.BetterLinkMovementMethod;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.apis.RedditAPI;
@@ -51,7 +40,14 @@ import ml.docilealligator.infinityforreddit.customviews.LinearLayoutManagerBugFi
 import ml.docilealligator.infinityforreddit.customviews.SwipeLockInterface;
 import ml.docilealligator.infinityforreddit.customviews.SwipeLockLinearLayoutManager;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
+import ml.docilealligator.infinityforreddit.databinding.ActivityWikiBinding;
+import ml.docilealligator.infinityforreddit.events.ChangeNetworkStatusEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
+import ml.docilealligator.infinityforreddit.markdown.EmoteCloseBracketInlineProcessor;
+import ml.docilealligator.infinityforreddit.markdown.EmotePlugin;
+import ml.docilealligator.infinityforreddit.markdown.EvenBetterLinkMovementMethod;
+import ml.docilealligator.infinityforreddit.markdown.ImageAndGifEntry;
+import ml.docilealligator.infinityforreddit.markdown.ImageAndGifPlugin;
 import ml.docilealligator.infinityforreddit.markdown.MarkdownUtils;
 import ml.docilealligator.infinityforreddit.utils.JSONUtils;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
@@ -67,53 +63,43 @@ public class WikiActivity extends BaseActivity {
     public static final String EXTRA_WIKI_PATH = "EWP";
     private static final String WIKI_MARKDOWN_STATE = "WMS";
 
-    @BindView(R.id.coordinator_layout_comment_wiki_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_comment_wiki_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_wiki_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_comment_wiki_activity)
-    Toolbar toolbar;
-    @BindView(R.id.swipe_refresh_layout_wiki_activity)
-    SwipeRefreshLayout swipeRefreshLayout;
-    @BindView(R.id.content_markdown_view_comment_wiki_activity)
-    RecyclerView markdownRecyclerView;
-    @BindView(R.id.fetch_wiki_linear_layout_wiki_activity)
-    LinearLayout mFetchWikiInfoLinearLayout;
-    @BindView(R.id.fetch_wiki_image_view_wiki_activity)
-    ImageView mFetchWikiInfoImageView;
-    @BindView(R.id.fetch_wiki_text_view_wiki_activity)
-    TextView mFetchWikiInfoTextView;
-
     @Inject
     @Named("no_oauth")
-    Retrofit retrofit;
+    Retrofit mRetrofit;
     @Inject
     @Named("default")
     SharedPreferences mSharedPreferences;
     @Inject
+    @Named("current_account")
+    SharedPreferences mCurrentAccountSharedPreferences;
+    @Inject
     CustomThemeWrapper mCustomThemeWrapper;
     private String wikiMarkdown;
+    private String mSubredditName;
+    private EmoteCloseBracketInlineProcessor emoteCloseBracketInlineProcessor;
+    private EmotePlugin emotePlugin;
+    private ImageAndGifPlugin imageAndGifPlugin;
+    private ImageAndGifEntry imageAndGifEntry;
     private Markwon markwon;
     private MarkwonAdapter markwonAdapter;
     private boolean isRefreshing = false;
     private RequestManager mGlide;
+    private ActivityWikiBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_wiki);
 
-        ButterKnife.bind(this);
+        binding = ActivityWikiBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
         applyCustomTheme();
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarCommentWikiActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         if (mSharedPreferences.getBoolean(SharedPreferencesUtils.SWIPE_RIGHT_TO_GO_BACK, true)) {
@@ -124,7 +110,7 @@ public class WikiActivity extends BaseActivity {
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(appBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutCommentWikiActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -133,15 +119,17 @@ public class WikiActivity extends BaseActivity {
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(toolbar);
-                markdownRecyclerView.setPadding(markdownRecyclerView.getPaddingLeft(), 0, markdownRecyclerView.getPaddingRight(), getNavBarHeight());
+                adjustToolbar(binding.toolbarCommentWikiActivity);
+                binding.contentMarkdownViewCommentWikiActivity.setPadding(binding.contentMarkdownViewCommentWikiActivity.getPaddingLeft(), 0, binding.contentMarkdownViewCommentWikiActivity.getPaddingRight(), getNavBarHeight());
             }
         }
 
         mGlide = Glide.with(this);
 
-        swipeRefreshLayout.setEnabled(mSharedPreferences.getBoolean(SharedPreferencesUtils.PULL_TO_REFRESH, true));
-        swipeRefreshLayout.setOnRefreshListener(this::loadWiki);
+        mSubredditName = getIntent().getStringExtra(EXTRA_SUBREDDIT_NAME);
+
+        binding.swipeRefreshLayoutWikiActivity.setEnabled(mSharedPreferences.getBoolean(SharedPreferencesUtils.PULL_TO_REFRESH, true));
+        binding.swipeRefreshLayoutWikiActivity.setOnRefreshListener(this::loadWiki);
 
         int markdownColor = mCustomThemeWrapper.getPrimaryTextColor();
         int spoilerBackgroundColor = markdownColor | 0xFF000000;
@@ -170,15 +158,39 @@ public class WikiActivity extends BaseActivity {
                 builder.linkColor(linkColor);
             }
         };
-        BetterLinkMovementMethod.OnLinkLongClickListener onLinkLongClickListener = (textView, url) -> {
+        EvenBetterLinkMovementMethod.OnLinkLongClickListener onLinkLongClickListener = (textView, url) -> {
             UrlMenuBottomSheetFragment urlMenuBottomSheetFragment = UrlMenuBottomSheetFragment.newInstance(url);
             urlMenuBottomSheetFragment.show(getSupportFragmentManager(), null);
             return true;
         };
+        emoteCloseBracketInlineProcessor = new EmoteCloseBracketInlineProcessor();
+        emotePlugin = EmotePlugin.create(this, SharedPreferencesUtils.EMBEDDED_MEDIA_ALL,
+                mediaMetadata -> {
+                    Intent intent = new Intent(this, ViewImageOrGifActivity.class);
+                    if (mediaMetadata.isGIF) {
+                        intent.putExtra(ViewImageOrGifActivity.EXTRA_GIF_URL_KEY, mediaMetadata.original.url);
+                    } else {
+                        intent.putExtra(ViewImageOrGifActivity.EXTRA_IMAGE_URL_KEY, mediaMetadata.original.url);
+                    }
+                    intent.putExtra(ViewImageOrGifActivity.EXTRA_SUBREDDIT_OR_USERNAME_KEY, mSubredditName);
+                    intent.putExtra(ViewImageOrGifActivity.EXTRA_FILE_NAME_KEY, mediaMetadata.fileName);
+                });
+        imageAndGifPlugin = new ImageAndGifPlugin();
+        imageAndGifEntry = new ImageAndGifEntry(this,
+                mGlide, SharedPreferencesUtils.EMBEDDED_MEDIA_ALL, mediaMetadata -> {
+            Intent intent = new Intent(this, ViewImageOrGifActivity.class);
+            if (mediaMetadata.isGIF) {
+                intent.putExtra(ViewImageOrGifActivity.EXTRA_GIF_URL_KEY, mediaMetadata.original.url);
+            } else {
+                intent.putExtra(ViewImageOrGifActivity.EXTRA_IMAGE_URL_KEY, mediaMetadata.original.url);
+            }
+            intent.putExtra(ViewImageOrGifActivity.EXTRA_SUBREDDIT_OR_USERNAME_KEY, mSubredditName);
+            intent.putExtra(ViewImageOrGifActivity.EXTRA_FILE_NAME_KEY, mediaMetadata.fileName);
+        });
         markwon = MarkdownUtils.createFullRedditMarkwon(this,
-                miscPlugin, markdownColor, spoilerBackgroundColor, onLinkLongClickListener);
+                miscPlugin, emoteCloseBracketInlineProcessor, emotePlugin, imageAndGifPlugin, markdownColor, spoilerBackgroundColor, onLinkLongClickListener);
 
-        markwonAdapter = MarkdownUtils.createTablesAdapter();
+        markwonAdapter = MarkdownUtils.createCustomTablesAndImagesAdapter(this, imageAndGifEntry);
         LinearLayoutManagerBugFixed linearLayoutManager = new SwipeLockLinearLayoutManager(this, new SwipeLockInterface() {
             @Override
             public void lockSwipe() {
@@ -194,8 +206,8 @@ public class WikiActivity extends BaseActivity {
                 }
             }
         });
-        markdownRecyclerView.setLayoutManager(linearLayoutManager);
-        markdownRecyclerView.setAdapter(markwonAdapter);
+        binding.contentMarkdownViewCommentWikiActivity.setLayoutManager(linearLayoutManager);
+        binding.contentMarkdownViewCommentWikiActivity.setAdapter(markwonAdapter);
 
         if (savedInstanceState != null) {
             wikiMarkdown = savedInstanceState.getString(WIKI_MARKDOWN_STATE);
@@ -216,12 +228,12 @@ public class WikiActivity extends BaseActivity {
         }
         isRefreshing = true;
 
-        swipeRefreshLayout.setRefreshing(true);
+        binding.swipeRefreshLayoutWikiActivity.setRefreshing(true);
 
-        Glide.with(this).clear(mFetchWikiInfoImageView);
-        mFetchWikiInfoLinearLayout.setVisibility(View.GONE);
+        Glide.with(this).clear(binding.fetchWikiImageViewWikiActivity);
+        binding.fetchWikiLinearLayoutWikiActivity.setVisibility(View.GONE);
 
-        retrofit.create(RedditAPI.class).getWikiPage(getIntent().getStringExtra(EXTRA_SUBREDDIT_NAME), getIntent().getStringExtra(EXTRA_WIKI_PATH)).enqueue(new Callback<String>() {
+        mRetrofit.create(RedditAPI.class).getWikiPage(mSubredditName, getIntent().getStringExtra(EXTRA_WIKI_PATH)).enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
                 if (response.isSuccessful()) {
@@ -243,23 +255,23 @@ public class WikiActivity extends BaseActivity {
                     }
                 }
                 isRefreshing = false;
-                swipeRefreshLayout.setRefreshing(false);
+                binding.swipeRefreshLayoutWikiActivity.setRefreshing(false);
             }
 
             @Override
             public void onFailure(@NonNull Call<String> call, @NonNull Throwable t) {
                 showErrorView(R.string.error_loading_wiki);
                 isRefreshing = false;
-                swipeRefreshLayout.setRefreshing(false);
+                binding.swipeRefreshLayoutWikiActivity.setRefreshing(false);
             }
         });
     }
 
     private void showErrorView(int stringResId) {
-        swipeRefreshLayout.setRefreshing(false);
-        mFetchWikiInfoLinearLayout.setVisibility(View.VISIBLE);
-        mFetchWikiInfoTextView.setText(stringResId);
-        mGlide.load(R.drawable.error_image).into(mFetchWikiInfoImageView);
+        binding.swipeRefreshLayoutWikiActivity.setRefreshing(false);
+        binding.fetchWikiLinearLayoutWikiActivity.setVisibility(View.VISIBLE);
+        binding.fetchWikiTextViewWikiActivity.setText(stringResId);
+        mGlide.load(R.drawable.error_image).into(binding.fetchWikiImageViewWikiActivity);
     }
 
     @Override
@@ -285,24 +297,30 @@ public class WikiActivity extends BaseActivity {
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return mSharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
-        swipeRefreshLayout.setProgressBackgroundColorSchemeColor(mCustomThemeWrapper.getCircularProgressBarBackground());
-        swipeRefreshLayout.setColorSchemeColors(mCustomThemeWrapper.getColorAccent());
-        mFetchWikiInfoTextView.setTextColor(mCustomThemeWrapper.getSecondaryTextColor());
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutCommentWikiActivity,
+                binding.collapsingToolbarLayoutWikiActivity, binding.toolbarCommentWikiActivity);
+        binding.swipeRefreshLayoutWikiActivity.setProgressBackgroundColorSchemeColor(mCustomThemeWrapper.getCircularProgressBarBackground());
+        binding.swipeRefreshLayoutWikiActivity.setColorSchemeColors(mCustomThemeWrapper.getColorAccent());
+        binding.fetchWikiTextViewWikiActivity.setTextColor(mCustomThemeWrapper.getSecondaryTextColor());
         if (typeface != null) {
-            mFetchWikiInfoTextView.setTypeface(typeface);
+            binding.fetchWikiTextViewWikiActivity.setTypeface(typeface);
         }
     }
 
@@ -310,6 +328,20 @@ public class WikiActivity extends BaseActivity {
     public void onAccountSwitchEvent(SwitchAccountEvent event) {
         if (!getClass().getName().equals(event.excludeActivityClassName)) {
             finish();
+        }
+    }
+
+    @Subscribe
+    public void onChangeNetworkStatusEvent(ChangeNetworkStatusEvent changeNetworkStatusEvent) {
+        String dataSavingMode = mSharedPreferences.getString(SharedPreferencesUtils.DATA_SAVING_MODE, SharedPreferencesUtils.DATA_SAVING_MODE_OFF);
+        if (dataSavingMode.equals(SharedPreferencesUtils.DATA_SAVING_MODE_ONLY_ON_CELLULAR_DATA)) {
+            if (emotePlugin != null) {
+                emotePlugin.setDataSavingMode(changeNetworkStatusEvent.connectedNetwork == Utils.NETWORK_TYPE_CELLULAR);
+            }
+
+            if (imageAndGifEntry != null) {
+                imageAndGifEntry.setDataSavingMode(changeNetworkStatusEvent.connectedNetwork == Utils.NETWORK_TYPE_CELLULAR);
+            }
         }
     }
 }

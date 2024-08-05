@@ -12,13 +12,8 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.lifecycle.ViewModelProvider;
-
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -28,8 +23,6 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.FragmentCommunicator;
 import ml.docilealligator.infinityforreddit.Infinity;
@@ -39,6 +32,7 @@ import ml.docilealligator.infinityforreddit.RecyclerViewContentScrollingInterfac
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 import ml.docilealligator.infinityforreddit.SortType;
 import ml.docilealligator.infinityforreddit.SortTypeSelectionCallback;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.FilteredThingFABMoreOptionsBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.PostLayoutBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.SearchPostSortTypeBottomSheetFragment;
@@ -47,6 +41,7 @@ import ml.docilealligator.infinityforreddit.bottomsheetfragments.SortTypeBottomS
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.UserThingSortTypeBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
+import ml.docilealligator.infinityforreddit.databinding.ActivityFilteredThingBinding;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.fragments.PostFragment;
 import ml.docilealligator.infinityforreddit.post.Post;
@@ -64,7 +59,8 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
     public static final String EXTRA_NAME = "ESN";
     public static final String EXTRA_QUERY = "EQ";
     public static final String EXTRA_TRENDING_SOURCE = "ETS";
-    public static final String EXTRA_FILTER = "EF";
+    public static final String EXTRA_POST_TYPE_FILTER = "EPTF";
+    public static final String EXTRA_CONSTRUCTED_POST_FILTER = "ECPF";
     public static final String EXTRA_CONTAIN_FLAIR = "ECF";
     public static final String EXTRA_POST_TYPE = "EPT";
     public static final String EXTRA_USER_WHERE = "EUW";
@@ -72,16 +68,6 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
     private static final String FRAGMENT_OUT_STATE = "FOS";
     private static final int CUSTOMIZE_POST_FILTER_ACTIVITY_REQUEST_CODE = 1000;
 
-    @BindView(R.id.coordinator_layout_filtered_thing_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_filtered_posts_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_filtered_posts_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_filtered_posts_activity)
-    Toolbar toolbar;
-    @BindView(R.id.fab_filtered_thing_activity)
-    FloatingActionButton fab;
     @Inject
     RedditDataRoomDatabase mRedditDataRoomDatabase;
     @Inject
@@ -101,14 +87,13 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
     @Inject
     Executor mExecutor;
     public SubredditViewModel mSubredditViewModel;
-    private String mAccessToken;
-    private String mAccountName;
     private String name;
     private String userWhere;
     private int postType;
     private PostFragment mFragment;
     private Menu mMenu;
     private boolean isNsfwSubreddit = false;
+    private ActivityFilteredThingBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -116,9 +101,8 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
 
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_filtered_thing);
-
-        ButterKnife.bind(this);
+        binding = ActivityFilteredThingBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
@@ -132,7 +116,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(appBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutFilteredPostsActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -141,87 +125,88 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(toolbar);
+                adjustToolbar(binding.toolbarFilteredPostsActivity);
 
                 int navBarHeight = getNavBarHeight();
                 if (navBarHeight > 0) {
-                    CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) fab.getLayoutParams();
+                    CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) binding.fabFilteredThingActivity.getLayoutParams();
                     params.bottomMargin += navBarHeight;
-                    fab.setLayoutParams(params);
+                    binding.fabFilteredThingActivity.setLayoutParams(params);
                 }
             }
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarFilteredPostsActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        setToolbarGoToTop(toolbar);
+        setToolbarGoToTop(binding.toolbarFilteredPostsActivity);
 
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
         name = getIntent().getStringExtra(EXTRA_NAME);
         postType = getIntent().getIntExtra(EXTRA_POST_TYPE, PostPagingSource.TYPE_FRONT_PAGE);
 
-        int filter = getIntent().getIntExtra(EXTRA_FILTER, -1000);
-        PostFilter postFilter = new PostFilter();
-        postFilter.allowNSFW = !mSharedPreferences.getBoolean(SharedPreferencesUtils.DISABLE_NSFW_FOREVER, false) && mNsfwAndSpoilerSharedPreferences.getBoolean((mAccountName == null || mAccountName.equals("-") ? "" : mAccountName) + SharedPreferencesUtils.NSFW_BASE, false);
-        switch (filter) {
-            case Post.NSFW_TYPE:
-                postFilter.onlyNSFW = true;
-                break;
-            case Post.TEXT_TYPE:
-                postFilter.containTextType = true;
-                postFilter.containLinkType = false;
-                postFilter.containImageType = false;
-                postFilter.containGifType = false;
-                postFilter.containVideoType = false;
-                postFilter.containGalleryType = false;
-                break;
-            case Post.LINK_TYPE:
-                postFilter.containTextType = false;
-                postFilter.containLinkType = true;
-                postFilter.containImageType = false;
-                postFilter.containGifType = false;
-                postFilter.containVideoType = false;
-                postFilter.containGalleryType = false;
-                break;
-            case Post.IMAGE_TYPE:
-                postFilter.containTextType = false;
-                postFilter.containLinkType = false;
-                postFilter.containImageType = true;
-                postFilter.containGifType = false;
-                postFilter.containVideoType = false;
-                postFilter.containGalleryType = false;
-                break;
-            case Post.GIF_TYPE:
-                postFilter.containTextType = false;
-                postFilter.containLinkType = false;
-                postFilter.containImageType = false;
-                postFilter.containGifType = true;
-                postFilter.containVideoType = false;
-                postFilter.containGalleryType = false;
-                break;
-            case Post.VIDEO_TYPE:
-                postFilter.containTextType = false;
-                postFilter.containLinkType = false;
-                postFilter.containImageType = false;
-                postFilter.containGifType = false;
-                postFilter.containVideoType = true;
-                postFilter.containGalleryType = false;
-                break;
-            case Post.GALLERY_TYPE:
-                postFilter.containTextType = false;
-                postFilter.containLinkType = false;
-                postFilter.containImageType = false;
-                postFilter.containGifType = false;
-                postFilter.containVideoType = false;
-                postFilter.containGalleryType = true;
-                break;
-        }
+        int filter = getIntent().getIntExtra(EXTRA_POST_TYPE_FILTER, -1000);
+        PostFilter postFilter = getIntent().getParcelableExtra(EXTRA_CONSTRUCTED_POST_FILTER);
+        if (postFilter == null) {
+            postFilter = new PostFilter();
+            switch (filter) {
+                case Post.NSFW_TYPE:
+                    postFilter.onlyNSFW = true;
+                    break;
+                case Post.TEXT_TYPE:
+                    postFilter.containTextType = true;
+                    postFilter.containLinkType = false;
+                    postFilter.containImageType = false;
+                    postFilter.containGifType = false;
+                    postFilter.containVideoType = false;
+                    postFilter.containGalleryType = false;
+                    break;
+                case Post.LINK_TYPE:
+                    postFilter.containTextType = false;
+                    postFilter.containLinkType = true;
+                    postFilter.containImageType = false;
+                    postFilter.containGifType = false;
+                    postFilter.containVideoType = false;
+                    postFilter.containGalleryType = false;
+                    break;
+                case Post.IMAGE_TYPE:
+                    postFilter.containTextType = false;
+                    postFilter.containLinkType = false;
+                    postFilter.containImageType = true;
+                    postFilter.containGifType = false;
+                    postFilter.containVideoType = false;
+                    postFilter.containGalleryType = false;
+                    break;
+                case Post.GIF_TYPE:
+                    postFilter.containTextType = false;
+                    postFilter.containLinkType = false;
+                    postFilter.containImageType = false;
+                    postFilter.containGifType = true;
+                    postFilter.containVideoType = false;
+                    postFilter.containGalleryType = false;
+                    break;
+                case Post.VIDEO_TYPE:
+                    postFilter.containTextType = false;
+                    postFilter.containLinkType = false;
+                    postFilter.containImageType = false;
+                    postFilter.containGifType = false;
+                    postFilter.containVideoType = true;
+                    postFilter.containGalleryType = false;
+                    break;
+                case Post.GALLERY_TYPE:
+                    postFilter.containTextType = false;
+                    postFilter.containLinkType = false;
+                    postFilter.containImageType = false;
+                    postFilter.containGifType = false;
+                    postFilter.containVideoType = false;
+                    postFilter.containGalleryType = true;
+                    break;
+            }
 
-        String flair = getIntent().getStringExtra(EXTRA_CONTAIN_FLAIR);
-        if (flair != null) {
-            postFilter.containFlairs = flair;
+            String flair = getIntent().getStringExtra(EXTRA_CONTAIN_FLAIR);
+            if (flair != null) {
+                postFilter.containFlairs = flair;
+            }
         }
+        postFilter.allowNSFW = !mSharedPreferences.getBoolean(SharedPreferencesUtils.DISABLE_NSFW_FOREVER, false) && mNsfwAndSpoilerSharedPreferences.getBoolean((accountName.equals(Account.ANONYMOUS_ACCOUNT) ? "" : accountName) + SharedPreferencesUtils.NSFW_BASE, false);
 
         if (postType == PostPagingSource.TYPE_USER) {
             userWhere = getIntent().getStringExtra(EXTRA_USER_WHERE);
@@ -254,15 +239,21 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
-        applyFABTheme(fab);
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutFilteredPostsActivity,
+                binding.collapsingToolbarLayoutFilteredPostsActivity, binding.toolbarFilteredPostsActivity);
+        applyFABTheme(binding.fabFilteredThingActivity);
     }
 
     private void bindView(PostFilter postFilter, boolean initializeFragment) {
@@ -282,7 +273,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
                     getSupportActionBar().setTitle(subredditNamePrefixed);
 
                     mSubredditViewModel = new ViewModelProvider(this,
-                            new SubredditViewModel.Factory(getApplication(), mRedditDataRoomDatabase, name))
+                            new SubredditViewModel.Factory(mRedditDataRoomDatabase, name))
                             .get(SubredditViewModel.class);
                     mSubredditViewModel.getSubredditLiveData().observe(this, subredditData -> {
                         if (subredditData != null) {
@@ -313,8 +304,6 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
             Bundle bundle = new Bundle();
             bundle.putInt(PostFragment.EXTRA_POST_TYPE, postType);
             bundle.putParcelable(PostFragment.EXTRA_FILTER, postFilter);
-            bundle.putString(PostFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
-            bundle.putString(PostFragment.EXTRA_ACCOUNT_NAME, mAccountName);
             if (postType == PostPagingSource.TYPE_USER) {
                 bundle.putString(PostFragment.EXTRA_USER_NAME, name);
                 bundle.putString(PostFragment.EXTRA_USER_WHERE, userWhere);
@@ -330,7 +319,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
             getSupportFragmentManager().beginTransaction().replace(R.id.frame_layout_filtered_posts_activity, mFragment).commit();
         }
 
-        fab.setOnClickListener(view -> {
+        binding.fabFilteredThingActivity.setOnClickListener(view -> {
             Intent intent = new Intent(this, CustomizePostFilterActivity.class);
             if (mFragment != null) {
                 intent.putExtra(CustomizePostFilterActivity.EXTRA_POST_FILTER, mFragment.getPostFilter());
@@ -338,8 +327,8 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
             startActivityForResult(intent, CUSTOMIZE_POST_FILTER_ACTIVITY_REQUEST_CODE);
         });
 
-        if (mAccessToken != null) {
-            fab.setOnLongClickListener(view -> {
+        if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
+            binding.fabFilteredThingActivity.setOnLongClickListener(view -> {
                 FilteredThingFABMoreOptionsBottomSheetFragment filteredThingFABMoreOptionsBottomSheetFragment
                         = new FilteredThingFABMoreOptionsBottomSheetFragment();
                 filteredThingFABMoreOptionsBottomSheetFragment.show(getSupportFragmentManager(), filteredThingFABMoreOptionsBottomSheetFragment.getTag());
@@ -470,7 +459,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
 
     @Override
     public void markPostAsRead(Post post) {
-        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, mAccountName, post.getId());
+        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, accountName, post.getId());
     }
 
     @Override
@@ -490,12 +479,12 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
 
     @Override
     public void contentScrollUp() {
-        fab.show();
+        binding.fabFilteredThingActivity.show();
     }
 
     @Override
     public void contentScrollDown() {
-        fab.hide();
+        binding.fabFilteredThingActivity.hide();
     }
 
     public boolean isNsfwSubreddit() {

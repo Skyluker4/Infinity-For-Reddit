@@ -20,12 +20,12 @@ import android.os.Handler;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
-import com.google.android.exoplayer2.upstream.BandwidthMeter;
-import com.google.android.exoplayer2.upstream.DataSource;
-import com.google.android.exoplayer2.upstream.DataSpec;
-import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
-import com.google.android.exoplayer2.upstream.TransferListener;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.datasource.DataSource;
+import androidx.media3.datasource.DataSpec;
+import androidx.media3.datasource.TransferListener;
+import androidx.media3.exoplayer.upstream.BandwidthMeter;
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter;
 
 /**
  * Abstract the {@link DefaultBandwidthMeter}, provide a wider use.
@@ -34,11 +34,14 @@ import com.google.android.exoplayer2.upstream.TransferListener;
  * @since 3.4.0
  */
 
+@UnstableApi
 @SuppressWarnings("WeakerAccess") //
 public final class BaseMeter<T extends BandwidthMeter> implements BandwidthMeter, TransferListener {
 
-  @NonNull protected final T bandwidthMeter;
-  @NonNull protected final TransferListener transferListener;
+  @NonNull
+  private final T bandwidthMeter;
+  @NonNull
+  private final TransferListener transferListener;
 
   /**
    * @deprecated use {@link #BaseMeter(BandwidthMeter)} instead.

@@ -1,6 +1,9 @@
 package ml.docilealligator.infinityforreddit.subreddit;
 
+import android.os.Handler;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
@@ -9,20 +12,24 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.paging.LivePagedListBuilder;
 import androidx.paging.PagedList;
 
+import java.util.concurrent.Executor;
+
 import ml.docilealligator.infinityforreddit.NetworkState;
 import ml.docilealligator.infinityforreddit.SortType;
 import retrofit2.Retrofit;
 
 public class SubredditListingViewModel extends ViewModel {
-    private SubredditListingDataSourceFactory subredditListingDataSourceFactory;
-    private LiveData<NetworkState> paginationNetworkState;
-    private LiveData<NetworkState> initialLoadingState;
-    private LiveData<Boolean> hasSubredditLiveData;
-    private LiveData<PagedList<SubredditData>> subreddits;
-    private MutableLiveData<SortType> sortTypeLiveData;
+    private final SubredditListingDataSourceFactory subredditListingDataSourceFactory;
+    private final LiveData<NetworkState> paginationNetworkState;
+    private final LiveData<NetworkState> initialLoadingState;
+    private final LiveData<Boolean> hasSubredditLiveData;
+    private final LiveData<PagedList<SubredditData>> subreddits;
+    private final MutableLiveData<SortType> sortTypeLiveData;
 
-    public SubredditListingViewModel(Retrofit retrofit, String query, SortType sortType, String accessToken, boolean nsfw) {
-        subredditListingDataSourceFactory = new SubredditListingDataSourceFactory(retrofit, query, sortType, accessToken, nsfw);
+    public SubredditListingViewModel(Executor executor, Handler handler, Retrofit retrofit, String query, SortType sortType,
+                                     @Nullable String accessToken, @NonNull String accountName, boolean nsfw) {
+        subredditListingDataSourceFactory = new SubredditListingDataSourceFactory(executor, handler, retrofit, query,
+                sortType, accessToken, accountName, nsfw);
 
         initialLoadingState = Transformations.switchMap(subredditListingDataSourceFactory.getSubredditListingDataSourceMutableLiveData(),
                 SubredditListingDataSource::getInitialLoadStateLiveData);
@@ -31,8 +38,7 @@ public class SubredditListingViewModel extends ViewModel {
         hasSubredditLiveData = Transformations.switchMap(subredditListingDataSourceFactory.getSubredditListingDataSourceMutableLiveData(),
                 SubredditListingDataSource::hasSubredditLiveData);
 
-        sortTypeLiveData = new MutableLiveData<>();
-        sortTypeLiveData.postValue(sortType);
+        sortTypeLiveData = new MutableLiveData<>(sortType);
 
         PagedList.Config pagedListConfig =
                 (new PagedList.Config.Builder())
@@ -75,24 +81,33 @@ public class SubredditListingViewModel extends ViewModel {
     }
 
     public static class Factory extends ViewModelProvider.NewInstanceFactory {
-        private Retrofit retrofit;
-        private String query;
-        private SortType sortType;
-        private String accessToken;
-        private boolean nsfw;
+        private final Executor executor;
+        private final Handler handler;
+        private final Retrofit retrofit;
+        private final String query;
+        private final SortType sortType;
+        @Nullable
+        private final String accessToken;
+        @NonNull
+        private final String accountName;
+        private final boolean nsfw;
 
-        public Factory(Retrofit retrofit, String query, SortType sortType, String accessToken, boolean nsfw) {
+        public Factory(Executor executor, Handler handler, Retrofit retrofit, String query, SortType sortType,
+                       @Nullable String accessToken, @NonNull String accountName, boolean nsfw) {
+            this.executor = executor;
+            this.handler = handler;
             this.retrofit = retrofit;
             this.query = query;
             this.sortType = sortType;
             this.accessToken = accessToken;
+            this.accountName = accountName;
             this.nsfw = nsfw;
         }
 
         @NonNull
         @Override
         public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
-            return (T) new SubredditListingViewModel(retrofit, query, sortType, accessToken, nsfw);
+            return (T) new SubredditListingViewModel(executor, handler, retrofit, query, sortType, accessToken,accountName, nsfw);
         }
     }
 }

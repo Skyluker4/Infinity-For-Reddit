@@ -30,18 +30,19 @@ public class SubredditSubscription {
                                                      RedditDataRoomDatabase redditDataRoomDatabase,
                                                      String subredditName,
                                                      SubredditSubscriptionListener subredditSubscriptionListener) {
-        FetchSubredditData.fetchSubredditData(null, retrofit, subredditName, "", new FetchSubredditData.FetchSubredditDataListener() {
-            @Override
-            public void onFetchSubredditDataSuccess(SubredditData subredditData, int nCurrentOnlineSubscribers) {
-                insertSubscription(executor, handler, redditDataRoomDatabase,
-                        subredditData, "-", subredditSubscriptionListener);
-            }
+        FetchSubredditData.fetchSubredditData(executor, handler, null, retrofit, subredditName,
+                "", new FetchSubredditData.FetchSubredditDataListener() {
+                    @Override
+                    public void onFetchSubredditDataSuccess(SubredditData subredditData, int nCurrentOnlineSubscribers) {
+                        insertSubscription(executor, handler, redditDataRoomDatabase,
+                                subredditData, Account.ANONYMOUS_ACCOUNT, subredditSubscriptionListener);
+                    }
 
-            @Override
-            public void onFetchSubredditDataFail(boolean isQuarantined) {
-                subredditSubscriptionListener.onSubredditSubscriptionFail();
-            }
-        });
+                    @Override
+                    public void onFetchSubredditDataFail(boolean isQuarantined) {
+                        subredditSubscriptionListener.onSubredditSubscriptionFail();
+                    }
+                });
     }
 
     public static void unsubscribeToSubreddit(Executor executor, Handler handler, Retrofit oauthRetrofit,
@@ -56,7 +57,7 @@ public class SubredditSubscription {
                                                        RedditDataRoomDatabase redditDataRoomDatabase,
                                                        String subredditName,
                                                        SubredditSubscriptionListener subredditSubscriptionListener) {
-        removeSubscription(executor, handler, redditDataRoomDatabase, subredditName, "-", subredditSubscriptionListener);
+        removeSubscription(executor, handler, redditDataRoomDatabase, subredditName, Account.ANONYMOUS_ACCOUNT, subredditSubscriptionListener);
     }
 
     private static void subredditSubscription(Executor executor, Handler handler, Retrofit oauthRetrofit,
@@ -71,23 +72,24 @@ public class SubredditSubscription {
         params.put(APIUtils.SR_NAME_KEY, subredditName);
 
         Call<String> subredditSubscriptionCall = api.subredditSubscription(APIUtils.getOAuthHeader(accessToken), params);
-        subredditSubscriptionCall.enqueue(new Callback<String>() {
+        subredditSubscriptionCall.enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<String> call, @NonNull retrofit2.Response<String> response) {
                 if (response.isSuccessful()) {
                     if (action.equals("sub")) {
-                        FetchSubredditData.fetchSubredditData(oauthRetrofit, retrofit, subredditName, accessToken, new FetchSubredditData.FetchSubredditDataListener() {
-                            @Override
-                            public void onFetchSubredditDataSuccess(SubredditData subredditData, int nCurrentOnlineSubscribers) {
-                                insertSubscription(executor, handler, redditDataRoomDatabase,
-                                        subredditData, accountName, subredditSubscriptionListener);
-                            }
+                        FetchSubredditData.fetchSubredditData(executor, handler, oauthRetrofit, retrofit,
+                                subredditName, accessToken, new FetchSubredditData.FetchSubredditDataListener() {
+                                    @Override
+                                    public void onFetchSubredditDataSuccess(SubredditData subredditData, int nCurrentOnlineSubscribers) {
+                                        insertSubscription(executor, handler, redditDataRoomDatabase,
+                                                subredditData, accountName, subredditSubscriptionListener);
+                                    }
 
-                            @Override
-                            public void onFetchSubredditDataFail(boolean isQuarantined) {
+                                    @Override
+                                    public void onFetchSubredditDataFail(boolean isQuarantined) {
 
-                            }
-                        });
+                                    }
+                                });
                     } else {
                         removeSubscription(executor, handler, redditDataRoomDatabase, subredditName,
                                 accountName, subredditSubscriptionListener);
@@ -117,7 +119,7 @@ public class SubredditSubscription {
         executor.execute(() -> {
             SubscribedSubredditData subscribedSubredditData = new SubscribedSubredditData(subredditData.getId(), subredditData.getName(),
                     subredditData.getIconUrl(), accountName, false);
-            if (accountName.equals("-")) {
+            if (accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
                 if (!redditDataRoomDatabase.accountDao().isAnonymousAccountInserted()) {
                     redditDataRoomDatabase.accountDao().insert(Account.getAnonymousAccount());
                 }
@@ -132,7 +134,7 @@ public class SubredditSubscription {
                                            String subredditName, String accountName,
                                            SubredditSubscriptionListener subredditSubscriptionListener) {
         executor.execute(() -> {
-            if (accountName.equals("-")) {
+            if (accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
                 if (!redditDataRoomDatabase.accountDao().isAnonymousAccountInserted()) {
                     redditDataRoomDatabase.accountDao().insert(Account.getAnonymousAccount());
                 }

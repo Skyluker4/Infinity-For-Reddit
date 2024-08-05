@@ -44,6 +44,7 @@
     <string-array name="settings_default_post_layout">
         <item>@string/post_layout_card</item>
         <item>@string/post_layout_card_2</item>
+        <item>@string/post_layout_card_3</item>
         <item>@string/post_layout_compact</item>
         <item>@string/post_layout_gallery</item>
     </string-array>
@@ -51,6 +52,7 @@
     <string-array name="settings_default_post_layout_values">
         <item>0</item>
         <item>3</item>
+        <item>4</item>
         <item>1</item>
         <item>2</item>
     </string-array>
@@ -59,6 +61,7 @@
         <item>@string/link_post_layout_auto</item>
         <item>@string/post_layout_card</item>
         <item>@string/post_layout_card_2</item>
+        <item>@string/post_layout_card_3</item>
         <item>@string/post_layout_compact</item>
         <item>@string/post_layout_gallery</item>
     </string-array>
@@ -67,6 +70,7 @@
         <item>-1</item>
         <item>0</item>
         <item>3</item>
+        <item>4</item>
         <item>1</item>
         <item>2</item>
     </string-array>
@@ -204,7 +208,6 @@
         <item>@string/downvoted</item>
         <item>@string/hidden</item>
         <item>@string/saved</item>
-        <item>@string/gilded</item>
     </string-array>
 
     <string-array name="settings_tab_post_type_anonymous">
@@ -303,7 +306,6 @@
         <item>@string/downvoted</item>
         <item>@string/hidden</item>
         <item>@string/saved</item>
-        <item>@string/gilded</item>
         <item>@string/go_to_top</item>
     </string-array>
 
@@ -355,7 +357,6 @@
         <item>@string/downvoted</item>
         <item>@string/hidden</item>
         <item>@string/saved</item>
-        <item>@string/gilded</item>
         <item>@string/go_to_top</item>
     </string-array>
 
@@ -457,10 +458,12 @@
         <item>English</item>
         <item>Française</item>
         <item>Deutsche</item>
+        <item>Ελληνικά</item>
         <item>हिंदी</item>
         <item>Magyar</item>
         <item>Italiana</item>
         <item>日本語</item>
+        <item>한국인</item>
         <item>Polskie</item>
         <item>Português</item>
         <item>Português (BR)</item>
@@ -468,6 +471,7 @@
         <item>русский</item>
         <item>Soomaali</item>
         <item>Español</item>
+        <item>தமிழ்</item>
         <item>Türkçe</item>
         <item>Українська</item>
         <item>Tiếng Việt</item>
@@ -482,10 +486,12 @@
         <item>en</item>
         <item>fr</item>
         <item>de</item>
+        <item>el</item>
         <item>hi</item>
         <item>hu</item>
         <item>it</item>
         <item>ja</item>
+        <item>ko</item>
         <item>pl</item>
         <item>pt</item>
         <item>pt-rBR</item>
@@ -493,6 +499,7 @@
         <item>ru</item>
         <item>so</item>
         <item>es</item>
+        <item>ta</item>
         <item>tr-rTR</item>
         <item>uk</item>
         <item>vi</item>
@@ -565,6 +572,10 @@
         <item>@string/contain_flair</item>
         <item>@string/exclude_domain</item>
         <item>@string/contain_domain</item>
+    </string-array>
+
+    <string-array name="add_to_comment_filter_options">
+        <item>@string/exclude_user</item>
     </string-array>
 
     <string-array name="settings_app_lock_timeout">
@@ -679,6 +690,39 @@
     <string-array name="settings_comment_divider_type_values">
         <item>0</item>
         <item>1</item>
+    </string-array>
+
+    <string-array name="save_theme_options">
+        <item>@string/save_locally</item>
+        <item>@string/save_online</item>
+        <item>@string/save_locally_and_online</item>
+    </string-array>
+
+    <string-array name="settings_embedded_media_type">
+        <item>@string/all</item>
+        <item>@string/image_and_gif</item>
+        <item>@string/image_and_emote</item>
+        <item>@string/gif_and_emote</item>
+        <item>@string/image_embedded_media</item>
+        <item>@string/gif</item>
+        <item>@string/emote</item>
+        <item>@string/none</item>
+    </string-array>
+
+    <string-array name="settings_embedded_media_type_values">
+        <item>15</item>
+        <item>7</item>
+        <item>6</item>
+        <item>5</item>
+        <item>3</item>
+        <item>2</item>
+        <item>1</item>
+        <item>0</item>
+    </string-array>
+
+    <string-array name="comment_filter_display_mode">
+        <item>@string/comment_filter_display_mode_remove_comments</item>
+        <item>@string/comment_filter_display_mode_fully_collapse_comments</item>
     </string-array>
 
 </resources>

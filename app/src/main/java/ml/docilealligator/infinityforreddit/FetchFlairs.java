@@ -10,8 +10,8 @@ import org.json.JSONException;
 import java.util.ArrayList;
 
 import ml.docilealligator.infinityforreddit.apis.RedditAPI;
-import ml.docilealligator.infinityforreddit.utils.JSONUtils;
 import ml.docilealligator.infinityforreddit.utils.APIUtils;
+import ml.docilealligator.infinityforreddit.utils.JSONUtils;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -59,8 +59,8 @@ public class FetchFlairs {
     }
 
     private static class ParseFlairsAsyncTask extends AsyncTask<Void, ArrayList<Flair>, ArrayList<Flair>> {
-        private String response;
-        private ParseFlairsAsyncTaskListener parseFlairsAsyncTaskListener;
+        private final String response;
+        private final ParseFlairsAsyncTaskListener parseFlairsAsyncTaskListener;
         ParseFlairsAsyncTask(String response, ParseFlairsAsyncTaskListener parseFlairsAsyncTaskListener) {
             this.response = response;
             this.parseFlairsAsyncTaskListener = parseFlairsAsyncTaskListener;

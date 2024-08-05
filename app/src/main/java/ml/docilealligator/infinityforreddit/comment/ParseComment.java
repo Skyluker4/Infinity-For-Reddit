@@ -6,26 +6,27 @@ import static ml.docilealligator.infinityforreddit.comment.Comment.VOTE_TYPE_UPV
 
 import android.os.Handler;
 import android.text.Html;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.checkerframework.checker.units.qual.A;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
+import ml.docilealligator.infinityforreddit.MediaMetadata;
+import ml.docilealligator.infinityforreddit.commentfilter.CommentFilter;
 import ml.docilealligator.infinityforreddit.utils.JSONUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 
 public class ParseComment {
     public static void parseComment(Executor executor, Handler handler, String response,
-                                    boolean expandChildren,
+                                    boolean expandChildren, CommentFilter commentFilter,
                                     ParseCommentListener parseCommentListener) {
         executor.execute(() -> {
             try {
@@ -38,7 +39,7 @@ public class ParseComment {
                 ArrayList<String> moreChildrenIds = new ArrayList<>();
                 ArrayList<Comment> newComments = new ArrayList<>();
 
-                parseCommentRecursion(childrenArray, newComments, moreChildrenIds, 0);
+                parseCommentRecursion(childrenArray, newComments, moreChildrenIds, 0, commentFilter);
                 expandChildren(newComments, expandedNewComments, expandChildren);
 
                 ArrayList<Comment> commentData;
@@ -159,7 +160,8 @@ public class ParseComment {
     }
 
     private static void parseCommentRecursion(JSONArray comments, ArrayList<Comment> newCommentData,
-                                              ArrayList<String> moreChildrenIds, int depth) throws JSONException {
+                                              ArrayList<String> moreChildrenIds, int depth,
+                                              CommentFilter commentFilter) throws JSONException {
         int actualCommentLength;
 
         if (comments.length() == 0) {
@@ -189,18 +191,28 @@ public class ParseComment {
         for (int i = 0; i < actualCommentLength; i++) {
             JSONObject data = comments.getJSONObject(i).getJSONObject(JSONUtils.DATA_KEY);
             Comment singleComment = parseSingleComment(data, depth);
+            boolean isFilteredOut = false;
+            if (!CommentFilter.isCommentAllowed(singleComment, commentFilter)) {
+                if (commentFilter.displayMode == CommentFilter.DisplayMode.REMOVE_COMMENT) {
+                    continue;
+                }
+
+                isFilteredOut = true;
+            }
 
             if (data.get(JSONUtils.REPLIES_KEY) instanceof JSONObject) {
                 JSONArray childrenArray = data.getJSONObject(JSONUtils.REPLIES_KEY)
                         .getJSONObject(JSONUtils.DATA_KEY).getJSONArray(JSONUtils.CHILDREN_KEY);
                 ArrayList<Comment> children = new ArrayList<>();
                 ArrayList<String> nextMoreChildrenIds = new ArrayList<>();
-                parseCommentRecursion(childrenArray, children, nextMoreChildrenIds, singleComment.getDepth());
+                parseCommentRecursion(childrenArray, children, nextMoreChildrenIds, singleComment.getDepth(),
+                        commentFilter);
                 singleComment.addChildren(children);
                 singleComment.setMoreChildrenIds(nextMoreChildrenIds);
                 singleComment.setChildCount(getChildCount(singleComment));
             }
 
+            singleComment.setIsFilteredOut(isFilteredOut);
             newCommentData.add(singleComment);
         }
     }
@@ -220,18 +232,22 @@ public class ParseComment {
                                        boolean setExpanded) {
         for (Comment c : comments) {
             visibleComments.add(c);
-            if (c.hasReply()) {
-                if (setExpanded) {
+            if (!c.isFilteredOut()) {
+                if (c.hasReply()) {
+                    if (setExpanded) {
+                        c.setExpanded(true);
+                    }
+                    expandChildren(c.getChildren(), visibleComments, setExpanded);
+                } else {
                     c.setExpanded(true);
                 }
-                expandChildren(c.getChildren(), visibleComments, setExpanded);
-            } else {
-                c.setExpanded(true);
             }
             if (c.hasMoreChildrenIds() && !c.getMoreChildrenIds().isEmpty()) {
                 //Add a load more placeholder
                 Comment placeholder = new Comment(c.getFullName(), c.getDepth() + 1, Comment.PLACEHOLDER_LOAD_MORE_COMMENTS);
-                visibleComments.add(placeholder);
+                if (!c.isFilteredOut()) {
+                    visibleComments.add(placeholder);
+                }
                 c.addChild(placeholder, c.getChildren().size());
             }
         }
@@ -261,31 +277,16 @@ public class ParseComment {
         String parentId = singleCommentData.getString(JSONUtils.PARENT_ID_KEY);
         boolean isSubmitter = singleCommentData.getBoolean(JSONUtils.IS_SUBMITTER_KEY);
         String distinguished = singleCommentData.getString(JSONUtils.DISTINGUISHED_KEY);
+        Map<String, MediaMetadata> mediaMetadataMap = JSONUtils.parseMediaMetadata(singleCommentData);
         String commentMarkdown = "";
         if (!singleCommentData.isNull(JSONUtils.BODY_KEY)) {
-            commentMarkdown = Utils.parseInlineGifInComments(Utils.modifyMarkdown(Utils.trimTrailingWhitespace(singleCommentData.getString(JSONUtils.BODY_KEY))));
-            if (!singleCommentData.isNull(JSONUtils.MEDIA_METADATA_KEY)) {
-                JSONObject mediaMetadataObject = singleCommentData.getJSONObject(JSONUtils.MEDIA_METADATA_KEY);
-                commentMarkdown = Utils.parseInlineEmotes(commentMarkdown, mediaMetadataObject);
-            }
+            commentMarkdown = Utils.parseRedditImagesBlock(
+                    Utils.modifyMarkdown(
+                    Utils.trimTrailingWhitespace(singleCommentData.getString(JSONUtils.BODY_KEY))), mediaMetadataMap);
         }
         String commentRawText = Utils.trimTrailingWhitespace(
                 Html.fromHtml(singleCommentData.getString(JSONUtils.BODY_HTML_KEY))).toString();
         String permalink = Html.fromHtml(singleCommentData.getString(JSONUtils.PERMALINK_KEY)).toString();
-        StringBuilder awardingsBuilder = new StringBuilder();
-        JSONArray awardingsArray = singleCommentData.getJSONArray(JSONUtils.ALL_AWARDINGS_KEY);
-        for (int i = 0; i < awardingsArray.length(); i++) {
-            JSONObject award = awardingsArray.getJSONObject(i);
-            int count = award.getInt(JSONUtils.COUNT_KEY);
-            JSONArray icons = award.getJSONArray(JSONUtils.RESIZED_ICONS_KEY);
-            if (icons.length() > 4) {
-                String iconUrl = icons.getJSONObject(3).getString(JSONUtils.URL_KEY);
-                awardingsBuilder.append("<img src=\"").append(Html.escapeHtml(iconUrl)).append("\"> ").append("x").append(count).append(" ");
-            } else if (icons.length() > 0) {
-                String iconUrl = icons.getJSONObject(icons.length() - 1).getString(JSONUtils.URL_KEY);
-                awardingsBuilder.append("<img src=\"").append(Html.escapeHtml(iconUrl)).append("\"> ").append("x").append(count).append(" ");
-            }
-        }
         int score = singleCommentData.getInt(JSONUtils.SCORE_KEY);
         int voteType;
         if (singleCommentData.isNull(JSONUtils.LIKES_KEY)) {
@@ -311,7 +312,8 @@ public class ParseComment {
         return new Comment(id, fullName, author, authorFlair, authorFlairHTMLBuilder.toString(),
                 linkAuthor, submitTime, commentMarkdown, commentRawText,
                 linkId, subredditName, parentId, score, voteType, isSubmitter, distinguished,
-                permalink, awardingsBuilder.toString(), depth, collapsed, hasReply, scoreHidden, saved, edited);
+                permalink, depth, collapsed, hasReply, scoreHidden, saved, edited,
+                mediaMetadataMap);
     }
 
     @Nullable

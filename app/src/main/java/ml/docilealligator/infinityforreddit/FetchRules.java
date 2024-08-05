@@ -3,6 +3,7 @@ package ml.docilealligator.infinityforreddit;
 import android.os.Handler;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -11,6 +12,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.concurrent.Executor;
 
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.apis.RedditAPI;
 import ml.docilealligator.infinityforreddit.utils.APIUtils;
 import ml.docilealligator.infinityforreddit.utils.JSONUtils;
@@ -26,11 +28,14 @@ public class FetchRules {
         void failed();
     }
 
-    public static void fetchRules(Executor executor, Handler handler, Retrofit retrofit, String accessToken, String subredditName,
+    public static void fetchRules(Executor executor, Handler handler, Retrofit retrofit, @Nullable String accessToken,
+                                  @NonNull String accountName, String subredditName,
                                   FetchRulesListener fetchRulesListener) {
         RedditAPI api = retrofit.create(RedditAPI.class);
-        Call<String> rulesCall = accessToken == null ? api.getRules(subredditName) : api.getRulesOauth(APIUtils.getOAuthHeader(accessToken), subredditName);
-        rulesCall.enqueue(new Callback<String>() {
+        Call<String> rulesCall = accountName.equals(Account.ANONYMOUS_ACCOUNT)
+                ? api.getRules(subredditName)
+                : api.getRulesOauth(APIUtils.getOAuthHeader(accessToken), subredditName);
+        rulesCall.enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
                 if (response.isSuccessful()) {

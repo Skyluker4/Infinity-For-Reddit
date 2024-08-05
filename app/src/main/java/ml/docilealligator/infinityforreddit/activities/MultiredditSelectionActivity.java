@@ -12,12 +12,7 @@ import android.view.WindowManager;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.fragment.app.Fragment;
-
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -28,15 +23,15 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.asynctasks.InsertMultireddit;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
+import ml.docilealligator.infinityforreddit.databinding.ActivityMultiredditSelectionBinding;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.fragments.MultiRedditListingFragment;
 import ml.docilealligator.infinityforreddit.multireddit.FetchMyMultiReddits;
@@ -51,14 +46,6 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
     private static final String INSERT_SUBSCRIBED_MULTIREDDIT_STATE = "ISSS";
     private static final String FRAGMENT_OUT_STATE = "FOS";
 
-    @BindView(R.id.coordinator_layout_multireddit_selection_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_multireddit_selection_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_multireddit_selection_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_multireddit_selection_activity)
-    Toolbar toolbar;
     @Inject
     @Named("oauth")
     Retrofit mOauthRetrofit;
@@ -74,19 +61,18 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
     CustomThemeWrapper mCustomThemeWrapper;
     @Inject
     Executor mExecutor;
-    private String mAccessToken;
-    private String mAccountName;
     private boolean mInsertSuccess = false;
     private Fragment mFragment;
+    private ActivityMultiredditSelectionBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_multireddit_selection);
 
-        ButterKnife.bind(this);
+        binding = ActivityMultiredditSelectionBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
@@ -100,7 +86,7 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(appBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutMultiredditSelectionActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -109,15 +95,12 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(toolbar);
+                adjustToolbar(binding.toolbarMultiredditSelectionActivity);
             }
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarMultiredditSelectionActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
 
         if (savedInstanceState == null) {
             bindView(true);
@@ -130,19 +113,25 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return mSharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutMultiredditSelectionActivity,
+                binding.collapsingToolbarLayoutMultiredditSelectionActivity, binding.toolbarMultiredditSelectionActivity);
     }
 
     private void bindView(boolean initializeFragment) {
@@ -150,15 +139,13 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
             return;
         }
 
-        if (mAccessToken != null) {
+        if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
             loadMultiReddits();
         }
 
         if (initializeFragment) {
             mFragment = new MultiRedditListingFragment();
             Bundle bundle = new Bundle();
-            bundle.putString(MultiRedditListingFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-            bundle.putString(MultiRedditListingFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
             bundle.putBoolean(MultiRedditListingFragment.EXTRA_IS_GETTING_MULTIREDDIT_INFO, true);
             mFragment.setArguments(bundle);
             getSupportFragmentManager().beginTransaction().replace(R.id.frame_layout_multireddit_selection_activity, mFragment).commit();
@@ -167,11 +154,11 @@ public class MultiredditSelectionActivity extends BaseActivity implements Activi
 
     private void loadMultiReddits() {
         if (!mInsertSuccess) {
-            FetchMyMultiReddits.fetchMyMultiReddits(mOauthRetrofit, mAccessToken, new FetchMyMultiReddits.FetchMyMultiRedditsListener() {
+            FetchMyMultiReddits.fetchMyMultiReddits(mOauthRetrofit, accessToken, new FetchMyMultiReddits.FetchMyMultiRedditsListener() {
                 @Override
                 public void success(ArrayList<MultiReddit> multiReddits) {
                     InsertMultireddit.insertMultireddits(mExecutor, new Handler(), mRedditDataRoomDatabase,
-                            multiReddits, mAccountName, () -> {
+                            multiReddits, accountName, () -> {
                         mInsertSuccess = true;
                         ((MultiRedditListingFragment) mFragment).stopRefreshProgressbar();
                     });

@@ -3,28 +3,29 @@ package ml.docilealligator.infinityforreddit.activities;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.RecyclerView;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentManager;
+import androidx.viewpager2.adapter.FragmentStateAdapter;
+import androidx.viewpager2.widget.ViewPager2;
 
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.tabs.TabLayoutMediator;
 import com.google.gson.JsonParseException;
 
 import org.greenrobot.eventbus.EventBus;
@@ -35,12 +36,11 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
+import ml.docilealligator.infinityforreddit.RecyclerViewContentScrollingInterface;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.adapters.CustomThemeListingRecyclerViewAdapter;
+import ml.docilealligator.infinityforreddit.apis.OnlineCustomThemeAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.ChangeThemeName;
 import ml.docilealligator.infinityforreddit.asynctasks.DeleteTheme;
 import ml.docilealligator.infinityforreddit.asynctasks.GetCustomTheme;
@@ -48,31 +48,33 @@ import ml.docilealligator.infinityforreddit.asynctasks.InsertCustomTheme;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.CreateThemeBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.CustomThemeOptionsBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.customtheme.CustomTheme;
-import ml.docilealligator.infinityforreddit.customtheme.CustomThemeViewModel;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
+import ml.docilealligator.infinityforreddit.customtheme.OnlineCustomThemeMetadata;
+import ml.docilealligator.infinityforreddit.databinding.ActivityCustomThemeListingBinding;
 import ml.docilealligator.infinityforreddit.events.RecreateActivityEvent;
+import ml.docilealligator.infinityforreddit.fragments.CustomThemeListingFragment;
 import ml.docilealligator.infinityforreddit.utils.CustomThemeSharedPreferencesUtils;
+import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 public class CustomThemeListingActivity extends BaseActivity implements
         CustomThemeOptionsBottomSheetFragment.CustomThemeOptionsBottomSheetFragmentListener,
-        CreateThemeBottomSheetFragment.SelectBaseThemeBottomSheetFragmentListener {
+        CreateThemeBottomSheetFragment.SelectBaseThemeBottomSheetFragmentListener,
+        RecyclerViewContentScrollingInterface {
 
-    @BindView(R.id.coordinator_layout_custom_theme_listing_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_customize_theme_listing_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_customize_theme_listing_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_customize_theme_listing_activity)
-    Toolbar toolbar;
-    @BindView(R.id.recycler_view_customize_theme_listing_activity)
-    RecyclerView recyclerView;
-    @BindView(R.id.fab_custom_theme_listing_activity)
-    FloatingActionButton fab;
+    @Inject
+    @Named("online_custom_themes")
+    Retrofit onlineCustomThemesRetrofit;
     @Inject
     @Named("default")
     SharedPreferences sharedPreferences;
+    @Inject
+    @Named("current_account")
+    SharedPreferences mCurrentAccountSharedPreferences;
     @Inject
     RedditDataRoomDatabase redditDataRoomDatabase;
     @Inject
@@ -88,7 +90,10 @@ public class CustomThemeListingActivity extends BaseActivity implements
     SharedPreferences amoledThemeSharedPreferences;
     @Inject
     Executor executor;
-    public CustomThemeViewModel customThemeViewModel;
+    private FragmentManager fragmentManager;
+    private SectionsPagerAdapter sectionsPagerAdapter;
+    private ActivityCustomThemeListingBinding binding;
+    private ActivityResultLauncher<Intent> customizeThemeActivityResultLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,40 +102,54 @@ public class CustomThemeListingActivity extends BaseActivity implements
         setImmersiveModeNotApplicable();
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_custom_theme_listing);
-
-        ButterKnife.bind(this);
+        binding = ActivityCustomThemeListingBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
         applyCustomTheme();
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarCustomizeThemeListingActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        CustomThemeListingRecyclerViewAdapter adapter = new CustomThemeListingRecyclerViewAdapter(this,
-                CustomThemeWrapper.getPredefinedThemes(this));
-        recyclerView.setAdapter(adapter);
-        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        binding.fabCustomThemeListingActivity.setOnClickListener(view -> {
+            CreateThemeBottomSheetFragment createThemeBottomSheetFragment = new CreateThemeBottomSheetFragment();
+            createThemeBottomSheetFragment.show(getSupportFragmentManager(), createThemeBottomSheetFragment.getTag());
+        });
+
+        fragmentManager = getSupportFragmentManager();
+
+        initializeViewPager();
+    }
+
+    private void initializeViewPager() {
+        sectionsPagerAdapter = new SectionsPagerAdapter(this);
+        binding.viewPager2CustomizeThemeListingActivity.setAdapter(sectionsPagerAdapter);
+        binding.viewPager2CustomizeThemeListingActivity.setUserInputEnabled(!sharedPreferences.getBoolean(SharedPreferencesUtils.DISABLE_SWIPING_BETWEEN_TABS, false));
+        new TabLayoutMediator(binding.tabLayoutCustomizeThemeListingActivity, binding.viewPager2CustomizeThemeListingActivity, (tab, position) -> {
+            switch (position) {
+                case 0:
+                    Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.local));
+                    break;
+                case 1:
+                    Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.online));
+                    break;
+            }
+        }).attach();
+
+        binding.viewPager2CustomizeThemeListingActivity.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                if (dy > 0) {
-                    fab.hide();
-                } else if (dy < 0) {
-                    fab.show();
+            public void onPageSelected(int position) {
+                binding.fabCustomThemeListingActivity.show();
+                if (position == 0) {
+                    unlockSwipeRightToGoBack();
+                } else {
+                    lockSwipeRightToGoBack();
                 }
             }
         });
 
-        customThemeViewModel = new ViewModelProvider(this,
-                new CustomThemeViewModel.Factory(redditDataRoomDatabase))
-                .get(CustomThemeViewModel.class);
-        customThemeViewModel.getAllCustomThemes().observe(this, adapter::setUserThemes);
-
-        fab.setOnClickListener(view -> {
-            CreateThemeBottomSheetFragment createThemeBottomSheetFragment = new CreateThemeBottomSheetFragment();
-            createThemeBottomSheetFragment.show(getSupportFragmentManager(), createThemeBottomSheetFragment.getTag());
-        });
+        fixViewPager2Sensitivity(binding.viewPager2CustomizeThemeListingActivity);
     }
 
     @Override
@@ -143,19 +162,44 @@ public class CustomThemeListingActivity extends BaseActivity implements
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return sharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return customThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
-        applyFABTheme(fab);
+        binding.coordinatorLayoutCustomThemeListingActivity.setBackgroundColor(customThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutCustomizeThemeListingActivity, binding.collapsingToolbarLayoutCustomizeThemeListingActivity, binding.toolbarCustomizeThemeListingActivity);
+        applyFABTheme(binding.fabCustomThemeListingActivity);
+        applyTabLayoutTheme(binding.tabLayoutCustomizeThemeListingActivity);
+    }
+
+    @Override
+    public void editTheme(String themeName, @Nullable OnlineCustomThemeMetadata onlineCustomThemeMetadata, int indexInThemeList) {
+        Intent intent = new Intent(this, CustomizeThemeActivity.class);
+        intent.putExtra(CustomizeThemeActivity.EXTRA_THEME_NAME, themeName);
+        intent.putExtra(CustomizeThemeActivity.EXTRA_ONLINE_CUSTOM_THEME_METADATA, onlineCustomThemeMetadata);
+        intent.putExtra(CustomizeThemeActivity.EXTRA_INDEX_IN_THEME_LIST, indexInThemeList);
+
+        if (indexInThemeList >= 0) {
+            //Online theme
+            Fragment fragment = sectionsPagerAdapter.getOnlineThemeFragment();
+            if (fragment != null && ((CustomThemeListingFragment) fragment).getCustomizeThemeActivityResultLauncher() != null) {
+                ((CustomThemeListingFragment) fragment).getCustomizeThemeActivityResultLauncher().launch(intent);
+                return;
+            }
+        }
+        startActivity(intent);
     }
 
     @Override
@@ -191,12 +235,12 @@ public class CustomThemeListingActivity extends BaseActivity implements
                 if (clipboard != null) {
                     ClipData clip = ClipData.newPlainText("simple text", jsonModel);
                     clipboard.setPrimaryClip(clip);
-                    Snackbar.make(coordinatorLayout, R.string.theme_copied, Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.theme_copied, Snackbar.LENGTH_SHORT).show();
                 } else {
-                    Snackbar.make(coordinatorLayout, R.string.copy_theme_faied, Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.copy_theme_faied, Snackbar.LENGTH_SHORT).show();
                 }
             } else {
-                Snackbar.make(coordinatorLayout, R.string.cannot_find_theme, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.cannot_find_theme, Snackbar.LENGTH_SHORT).show();
             }
         });
     }
@@ -239,13 +283,41 @@ public class CustomThemeListingActivity extends BaseActivity implements
             if (clipboard != null) {
                 ClipData clip = ClipData.newPlainText("simple text", jsonModel);
                 clipboard.setPrimaryClip(clip);
-                Snackbar.make(coordinatorLayout, R.string.theme_copied, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.theme_copied, Snackbar.LENGTH_SHORT).show();
             } else {
-                Snackbar.make(coordinatorLayout, R.string.copy_theme_faied, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.copy_theme_faied, Snackbar.LENGTH_SHORT).show();
             }
         } else {
-            Snackbar.make(coordinatorLayout, R.string.cannot_find_theme, Snackbar.LENGTH_SHORT).show();
+            Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.cannot_find_theme, Snackbar.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public void shareTheme(OnlineCustomThemeMetadata onlineCustomThemeMetadata) {
+        onlineCustomThemesRetrofit.create(OnlineCustomThemeAPI.class)
+                .getCustomTheme(onlineCustomThemeMetadata.name, onlineCustomThemeMetadata.username)
+                .enqueue(new Callback<>() {
+                    @Override
+                    public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
+                        if (response.isSuccessful()) {
+                            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                            if (clipboard != null) {
+                                ClipData clip = ClipData.newPlainText("simple text", response.body());
+                                clipboard.setPrimaryClip(clip);
+                                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.theme_copied, Snackbar.LENGTH_SHORT).show();
+                            } else {
+                                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.copy_theme_faied, Snackbar.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(CustomThemeListingActivity.this, response.message(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(@NonNull Call<String> call, @NonNull Throwable throwable) {
+                        Toast.makeText(CustomThemeListingActivity.this, R.string.cannot_download_theme_data, Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     @Subscribe
@@ -259,11 +331,11 @@ public class CustomThemeListingActivity extends BaseActivity implements
         if (clipboard != null) {
             // If it does contain data, decide if you can handle the data.
             if (!clipboard.hasPrimaryClip()) {
-                Snackbar.make(coordinatorLayout, R.string.no_data_in_clipboard, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.no_data_in_clipboard, Snackbar.LENGTH_SHORT).show();
             } else if (clipboard.getPrimaryClipDescription() != null &&
                     !clipboard.getPrimaryClipDescription().hasMimeType("text/*")) {
                 // since the clipboard has data but it is not text
-                Snackbar.make(coordinatorLayout, R.string.no_data_in_clipboard, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.no_data_in_clipboard, Snackbar.LENGTH_SHORT).show();
             } else if (clipboard.getPrimaryClip() != null) {
                 ClipData.Item item = clipboard.getPrimaryClip().getItemAt(0);
                 String json = item.coerceToText(this.getApplicationContext()).toString();
@@ -272,13 +344,23 @@ public class CustomThemeListingActivity extends BaseActivity implements
                         CustomTheme customTheme = CustomTheme.fromJson(json);
                         checkDuplicateAndImportTheme(customTheme, true);
                     } catch (JsonParseException e) {
-                        Snackbar.make(coordinatorLayout, R.string.parse_theme_failed, Snackbar.LENGTH_SHORT).show();
+                        Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.parse_theme_failed, Snackbar.LENGTH_SHORT).show();
                     }
                 } else {
-                    Snackbar.make(coordinatorLayout, R.string.parse_theme_failed, Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(binding.coordinatorLayoutCustomThemeListingActivity, R.string.parse_theme_failed, Snackbar.LENGTH_SHORT).show();
                 }
             }
         }
+    }
+
+    @Override
+    public void contentScrollUp() {
+        binding.fabCustomThemeListingActivity.show();
+    }
+
+    @Override
+    public void contentScrollDown() {
+        binding.fabCustomThemeListingActivity.hide();
     }
 
     private void checkDuplicateAndImportTheme(CustomTheme customTheme, boolean checkDuplicate) {
@@ -326,5 +408,38 @@ public class CustomThemeListingActivity extends BaseActivity implements
                                 .show();
                     }
                 });
+    }
+
+    private class SectionsPagerAdapter extends FragmentStateAdapter {
+
+        SectionsPagerAdapter(FragmentActivity fa) {
+            super(fa);
+        }
+
+        @NonNull
+        @Override
+        public Fragment createFragment(int position) {
+            if (position == 0) {
+                return new CustomThemeListingFragment();
+            }
+            CustomThemeListingFragment fragment = new CustomThemeListingFragment();
+            Bundle bundle = new Bundle();
+            bundle.putBoolean(CustomThemeListingFragment.EXTRA_IS_ONLINE, true);
+            fragment.setArguments(bundle);
+            return fragment;
+        }
+
+        @Nullable
+        private Fragment getOnlineThemeFragment() {
+            if (fragmentManager == null) {
+                return null;
+            }
+            return fragmentManager.findFragmentByTag("f1");
+        }
+
+        @Override
+        public int getItemCount() {
+            return 2;
+        }
     }
 }

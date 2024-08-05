@@ -4,6 +4,7 @@ import android.os.AsyncTask;
 import android.os.Handler;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +22,7 @@ import retrofit2.Retrofit;
 
 public class UserFollowing {
     public static void followUser(Retrofit oauthRetrofit, Retrofit retrofit,
-                                  String accessToken, String username, String accountName,
+                                  @Nullable String accessToken, String username, @NonNull String accountName,
                                   RedditDataRoomDatabase redditDataRoomDatabase,
                                   UserFollowingListener userFollowingListener) {
         userFollowing(oauthRetrofit, retrofit, accessToken, username, accountName, "sub",
@@ -39,7 +40,7 @@ public class UserFollowing {
                         redditDataRoomDatabase.accountDao().insert(Account.getAnonymousAccount());
                     }
                     redditDataRoomDatabase.subscribedUserDao().insert(new SubscribedUserData(userData.getName(), userData.getIconUrl(),
-                            "-", false));
+                            Account.ANONYMOUS_ACCOUNT, false));
 
                     handler.post(userFollowingListener::onUserFollowingSuccess);
                 });
@@ -53,7 +54,7 @@ public class UserFollowing {
     }
 
     public static void unfollowUser(Retrofit oauthRetrofit, Retrofit retrofit,
-                                    String accessToken, String username, String accountName,
+                                    @Nullable String accessToken, String username, @NonNull String accountName,
                                     RedditDataRoomDatabase redditDataRoomDatabase,
                                     UserFollowingListener userFollowingListener) {
         userFollowing(oauthRetrofit, retrofit, accessToken, username, accountName, "unsub",
@@ -61,17 +62,17 @@ public class UserFollowing {
     }
 
     public static void anonymousUnfollowUser(Executor executor, Handler handler, String username,
-                                    RedditDataRoomDatabase redditDataRoomDatabase,
-                                    UserFollowingListener userFollowingListener) {
+                                             RedditDataRoomDatabase redditDataRoomDatabase,
+                                             UserFollowingListener userFollowingListener) {
         executor.execute(() -> {
-            redditDataRoomDatabase.subscribedUserDao().deleteSubscribedUser(username, "-");
+            redditDataRoomDatabase.subscribedUserDao().deleteSubscribedUser(username, Account.ANONYMOUS_ACCOUNT);
 
             handler.post(userFollowingListener::onUserFollowingSuccess);
         });
     }
 
-    private static void userFollowing(Retrofit oauthRetrofit, Retrofit retrofit, String accessToken,
-                                      String username, String accountName, String action, SubscribedUserDao subscribedUserDao,
+    private static void userFollowing(Retrofit oauthRetrofit, Retrofit retrofit, @Nullable String accessToken,
+                                      String username, @NonNull String accountName, String action, SubscribedUserDao subscribedUserDao,
                                       UserFollowingListener userFollowingListener) {
         RedditAPI api = oauthRetrofit.create(RedditAPI.class);
 
@@ -120,14 +121,14 @@ public class UserFollowing {
 
     private static class UpdateSubscriptionAsyncTask extends AsyncTask<Void, Void, Void> {
 
-        private SubscribedUserDao subscribedUserDao;
+        private final SubscribedUserDao subscribedUserDao;
         private String username;
-        private String accountName;
+        private final String accountName;
         private SubscribedUserData subscribedUserData;
-        private boolean isSubscribing;
+        private final boolean isSubscribing;
 
         UpdateSubscriptionAsyncTask(SubscribedUserDao subscribedUserDao, String username,
-                                    String accountName, boolean isSubscribing) {
+                                    @NonNull String accountName, boolean isSubscribing) {
             this.subscribedUserDao = subscribedUserDao;
             this.username = username;
             this.accountName = accountName;
@@ -135,7 +136,7 @@ public class UserFollowing {
         }
 
         UpdateSubscriptionAsyncTask(SubscribedUserDao subscribedUserDao, UserData userData,
-                                    String accountName, boolean isSubscribing) {
+                                    @NonNull String accountName, boolean isSubscribing) {
             this.subscribedUserDao = subscribedUserDao;
             this.subscribedUserData = new SubscribedUserData(userData.getName(), userData.getIconUrl(),
                     accountName, false);

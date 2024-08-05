@@ -1,21 +1,19 @@
 package ml.docilealligator.infinityforreddit.activities;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -27,19 +25,24 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 import ml.docilealligator.infinityforreddit.adapters.CustomizeThemeRecyclerViewAdapter;
+import ml.docilealligator.infinityforreddit.apis.OnlineCustomThemeAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.GetCustomTheme;
 import ml.docilealligator.infinityforreddit.asynctasks.InsertCustomTheme;
 import ml.docilealligator.infinityforreddit.customtheme.CustomTheme;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeSettingsItem;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
+import ml.docilealligator.infinityforreddit.customtheme.OnlineCustomThemeMetadata;
+import ml.docilealligator.infinityforreddit.databinding.ActivityCustomizeThemeBinding;
 import ml.docilealligator.infinityforreddit.events.RecreateActivityEvent;
 import ml.docilealligator.infinityforreddit.utils.CustomThemeSharedPreferencesUtils;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 public class CustomizeThemeActivity extends BaseActivity {
 
@@ -48,24 +51,25 @@ public class CustomizeThemeActivity extends BaseActivity {
     public static final int EXTRA_DARK_THEME = CustomThemeSharedPreferencesUtils.DARK;
     public static final int EXTRA_AMOLED_THEME = CustomThemeSharedPreferencesUtils.AMOLED;
     public static final String EXTRA_THEME_NAME = "ETN";
+    public static final String EXTRA_ONLINE_CUSTOM_THEME_METADATA = "EOCTM";
+    public static final String EXTRA_INDEX_IN_THEME_LIST = "EIITL";
     public static final String EXTRA_IS_PREDEFIINED_THEME = "EIPT";
     public static final String EXTRA_CREATE_THEME = "ECT";
+    public static final String RETURN_EXTRA_THEME_NAME = "RETN";
+    public static final String RETURN_EXTRA_PRIMARY_COLOR = "REPC";
+    public static final String RETURN_EXTRA_INDEX_IN_THEME_LIST = "REIITL";
     private static final String CUSTOM_THEME_SETTINGS_ITEMS_STATE = "CTSIS";
     private static final String THEME_NAME_STATE = "TNS";
 
-    @BindView(R.id.coordinator_customize_theme_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_customize_theme_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_customize_theme_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_customize_theme_activity)
-    Toolbar toolbar;
-    @BindView(R.id.recycler_view_customize_theme_activity)
-    RecyclerView recyclerView;
+    @Inject
+    @Named("online_custom_themes")
+    Retrofit onlineCustomThemesRetrofit;
     @Inject
     @Named("default")
     SharedPreferences sharedPreferences;
+    @Inject
+    @Named("current_account")
+    SharedPreferences mCurrentAccountSharedPreferences;
     @Inject
     @Named("light_theme")
     SharedPreferences lightThemeSharedPreferences;
@@ -83,9 +87,11 @@ public class CustomizeThemeActivity extends BaseActivity {
     Executor mExecutor;
 
     private String themeName;
+    private OnlineCustomThemeMetadata onlineCustomThemeMetadata;
     private boolean isPredefinedTheme;
     private ArrayList<CustomThemeSettingsItem> customThemeSettingsItems;
     private CustomizeThemeRecyclerViewAdapter adapter;
+    private ActivityCustomizeThemeBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,13 +100,12 @@ public class CustomizeThemeActivity extends BaseActivity {
         setImmersiveModeNotApplicable();
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_customize_theme);
-
-        ButterKnife.bind(this);
+        binding = ActivityCustomizeThemeBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         applyCustomTheme();
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarCustomizeThemeActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         if (getIntent().getBooleanExtra(EXTRA_CREATE_THEME, false)) {
@@ -149,14 +154,16 @@ public class CustomizeThemeActivity extends BaseActivity {
                     }
 
                     adapter = new CustomizeThemeRecyclerViewAdapter(this, customThemeWrapper, themeName);
-                    recyclerView.setAdapter(adapter);
+                    binding.recyclerViewCustomizeThemeActivity.setAdapter(adapter);
                     adapter.setCustomThemeSettingsItem(customThemeSettingsItems);
                 });
             } else {
                 isPredefinedTheme = getIntent().getBooleanExtra(EXTRA_IS_PREDEFIINED_THEME, false);
                 themeName = getIntent().getStringExtra(EXTRA_THEME_NAME);
+                onlineCustomThemeMetadata = getIntent().getParcelableExtra(EXTRA_ONLINE_CUSTOM_THEME_METADATA);
+
                 adapter = new CustomizeThemeRecyclerViewAdapter(this, customThemeWrapper, themeName);
-                recyclerView.setAdapter(adapter);
+                binding.recyclerViewCustomizeThemeActivity.setAdapter(adapter);
                 if (isPredefinedTheme) {
                     customThemeSettingsItems = CustomThemeSettingsItem.convertCustomThemeToSettingsItem(
                             CustomizeThemeActivity.this,
@@ -164,21 +171,51 @@ public class CustomizeThemeActivity extends BaseActivity {
                             androidVersion);
 
                     adapter = new CustomizeThemeRecyclerViewAdapter(this, customThemeWrapper, themeName);
-                    recyclerView.setAdapter(adapter);
+                    binding.recyclerViewCustomizeThemeActivity.setAdapter(adapter);
                     adapter.setCustomThemeSettingsItem(customThemeSettingsItems);
                 } else {
-                    GetCustomTheme.getCustomTheme(mExecutor, new Handler(), redditDataRoomDatabase,
-                            themeName, customTheme -> {
-                                customThemeSettingsItems = CustomThemeSettingsItem.convertCustomThemeToSettingsItem(
-                                        CustomizeThemeActivity.this, customTheme, androidVersion);
+                    if (onlineCustomThemeMetadata != null) {
+                        binding.progressBarCustomizeThemeActivity.setVisibility(View.VISIBLE);
+                        onlineCustomThemesRetrofit.create(OnlineCustomThemeAPI.class)
+                                .getCustomTheme(onlineCustomThemeMetadata.name, onlineCustomThemeMetadata.username)
+                                .enqueue(new Callback<>() {
+                                    @Override
+                                    public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
+                                        if (response.isSuccessful()) {
+                                            customThemeSettingsItems = CustomThemeSettingsItem.convertCustomThemeToSettingsItem(
+                                                    CustomizeThemeActivity.this,
+                                                    CustomTheme.fromJson(response.body()),
+                                                    androidVersion);
 
-                                adapter.setCustomThemeSettingsItem(customThemeSettingsItems);
-                            });
+                                            adapter.setCustomThemeSettingsItem(customThemeSettingsItems);
+
+                                            binding.progressBarCustomizeThemeActivity.setVisibility(View.GONE);
+                                        } else {
+                                            Toast.makeText(CustomizeThemeActivity.this, response.message(), Toast.LENGTH_SHORT).show();
+                                            finish();
+                                        }
+                                    }
+
+                                    @Override
+                                    public void onFailure(@NonNull Call<String> call, @NonNull Throwable throwable) {
+                                        Toast.makeText(CustomizeThemeActivity.this, R.string.cannot_download_theme_data, Toast.LENGTH_SHORT).show();
+                                        finish();
+                                    }
+                                });
+                    } else {
+                        GetCustomTheme.getCustomTheme(mExecutor, new Handler(), redditDataRoomDatabase,
+                                themeName, customTheme -> {
+                                    customThemeSettingsItems = CustomThemeSettingsItem.convertCustomThemeToSettingsItem(
+                                            CustomizeThemeActivity.this, customTheme, androidVersion);
+
+                                    adapter.setCustomThemeSettingsItem(customThemeSettingsItems);
+                                });
+                    }
                 }
             }
         } else {
             adapter = new CustomizeThemeRecyclerViewAdapter(this, customThemeWrapper, themeName);
-            recyclerView.setAdapter(adapter);
+            binding.recyclerViewCustomizeThemeActivity.setAdapter(adapter);
             adapter.setCustomThemeSettingsItem(customThemeSettingsItems);
         }
     }
@@ -206,23 +243,85 @@ public class CustomizeThemeActivity extends BaseActivity {
             if (adapter != null) {
                 themeName = adapter.getThemeName();
                 if (themeName.equals("")) {
-                    Snackbar.make(coordinatorLayout, R.string.no_theme_name, Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(binding.coordinatorCustomizeThemeActivity, R.string.no_theme_name, Snackbar.LENGTH_SHORT).show();
                     return true;
                 }
                 CustomTheme customTheme = CustomTheme.convertSettingsItemsToCustomTheme(customThemeSettingsItems, themeName);
-                InsertCustomTheme.insertCustomTheme(mExecutor, new Handler(), redditDataRoomDatabase, lightThemeSharedPreferences,
-                        darkThemeSharedPreferences, amoledThemeSharedPreferences, customTheme,
-                        false, () -> {
-                            Toast.makeText(CustomizeThemeActivity.this, R.string.saved, Toast.LENGTH_SHORT).show();
-                            EventBus.getDefault().post(new RecreateActivityEvent());
-                            finish();
-                        });
+                if (onlineCustomThemeMetadata != null && onlineCustomThemeMetadata.username.equals(accountName)) {
+                    // This custom theme is uploaded by the current user
+                    final int[] option = {0};
+                    new MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialogTheme)
+                            .setTitle(R.string.save_theme_options_title)
+                            //.setMessage(R.string.save_theme_options_message)
+                            .setSingleChoiceItems(R.array.save_theme_options, 0, new DialogInterface.OnClickListener() {
+                                @Override
+                                public void onClick(DialogInterface dialog, int which) {
+                                    option[0] = which;
+                                }
+                            })
+                            .setPositiveButton(R.string.ok, (dialogInterface, which) -> {
+                                switch (option[0]) {
+                                    case 0:
+                                        saveThemeLocally(customTheme);
+                                        break;
+                                    case 1:
+                                        saveThemeOnline(customTheme);
+                                        break;
+                                    case 2:
+                                        saveThemeLocally(customTheme);
+                                        saveThemeOnline(customTheme);
+                                }
+                            })
+                            .setNegativeButton(R.string.cancel, null)
+                            .show();
+                } else {
+                    saveThemeLocally(customTheme);
+                }
             }
 
             return true;
         }
 
         return false;
+    }
+
+    private void saveThemeLocally(CustomTheme customTheme) {
+        InsertCustomTheme.insertCustomTheme(mExecutor, new Handler(), redditDataRoomDatabase, lightThemeSharedPreferences,
+                darkThemeSharedPreferences, amoledThemeSharedPreferences, customTheme,
+                false, () -> {
+                    Toast.makeText(CustomizeThemeActivity.this, R.string.theme_saved_locally, Toast.LENGTH_SHORT).show();
+                    EventBus.getDefault().post(new RecreateActivityEvent());
+                    finish();
+                });
+    }
+
+    private void saveThemeOnline(CustomTheme customTheme) {
+        onlineCustomThemesRetrofit.create(OnlineCustomThemeAPI.class).modifyTheme(
+                onlineCustomThemeMetadata.id, customTheme.name,
+                customTheme.getJSONModel(),
+                ('#' + Integer.toHexString(customTheme.colorPrimary)).toUpperCase()
+        ).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
+                if (response.isSuccessful()) {
+                    Toast.makeText(CustomizeThemeActivity.this, R.string.theme_saved_online, Toast.LENGTH_SHORT).show();
+                    Intent returnIntent = new Intent();
+                    returnIntent.putExtra(RETURN_EXTRA_INDEX_IN_THEME_LIST, getIntent().getIntExtra(EXTRA_INDEX_IN_THEME_LIST, -1));
+                    returnIntent.putExtra(RETURN_EXTRA_THEME_NAME, customTheme.name);
+                    returnIntent.putExtra(RETURN_EXTRA_PRIMARY_COLOR, '#' + Integer.toHexString(customTheme.colorPrimary));
+                    setResult(RESULT_OK, returnIntent);
+
+                    finish();
+                } else {
+                    Toast.makeText(CustomizeThemeActivity.this, R.string.upload_theme_failed, Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<String> call, @NonNull Throwable throwable) {
+                Toast.makeText(CustomizeThemeActivity.this, R.string.upload_theme_failed, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override
@@ -245,18 +344,24 @@ public class CustomizeThemeActivity extends BaseActivity {
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return sharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return customThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
-        coordinatorLayout.setBackgroundColor(customThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutCustomizeThemeActivity, binding.collapsingToolbarLayoutCustomizeThemeActivity, binding.toolbarCustomizeThemeActivity);
+        binding.coordinatorCustomizeThemeActivity.setBackgroundColor(customThemeWrapper.getBackgroundColor());
+        binding.progressBarCustomizeThemeActivity.setIndeterminateTintList(ColorStateList.valueOf(customThemeWrapper.getColorAccent()));
     }
 }

@@ -29,6 +29,8 @@ public class CustomThemeSharedPreferencesUtils {
     public static final String BACKGROUND_COLOR = "backgroundColor";
     public static final String CARD_VIEW_BACKGROUND_COLOR = "cardViewBackgroundColor";
     public static final String READ_POST_CARD_VIEW_BACKGROUND_COLOR = "readPostCardViewBackgroundColor";
+    public static final String FILLED_CARD_VIEW_BACKGROUND_COLOR = "filledCardViewBackgroundColor";
+    public static final String READ_POST_FILLED_CARD_VIEW_BACKGROUND_COLOR = "readPostFilledCardViewBackgroundColor";
     public static final String COMMENT_BACKGROUND_COLOR = "commentBackgroundColor";
     public static final String BOTTOM_APP_BAR_BACKGROUND_COLOR = "bottomAppBarBackgroundColor";
     public static final String PRIMARY_ICON_COLOR = "primaryIconColor";
@@ -57,8 +59,8 @@ public class CustomThemeSharedPreferencesUtils {
     public static final String NSFW_TEXT_COLOR = "nsfwTextColor";
     public static final String FLAIR_BACKGROUND_COLOR = "flairBackgroundColor";
     public static final String FLAIR_TEXT_COLOR = "flairTextColor";
-    public static final String AWARDS_BACKGROUND_COLOR = "awardsBackgroundColor";
-    public static final String AWARDS_TEXT_COLOR = "awardsTextColor";
+    private static final String AWARDS_BACKGROUND_COLOR = "awardsBackgroundColor";
+    private static final String AWARDS_TEXT_COLOR = "awardsTextColor";
     public static final String ARCHIVED_ICON_TINT = "archivedIconTint";
     public static final String LOCKED_ICON_TINT = "lockedIconTint";
     public static final String CROSSPOST_ICON_TINT = "crosspostIconTint";
@@ -94,7 +96,7 @@ public class CustomThemeSharedPreferencesUtils {
     public static final String SENT_MESSAGE_BACKGROUND_COLOR = "sentMessageBackgroundColor";
     public static final String SEND_MESSAGE_ICON_COLOR = "sentMessageIconColor";
     public static final String FULLY_COLLAPSED_COMMENT_BACKGROUND_COLOR = "fullyCollapsedCommentBackgroundColor";
-    public static final String AWARDED_COMMENT_BACKGROUND_COLOR = "awardedCommentBackgroundColor";
+    private static final String AWARDED_COMMENT_BACKGROUND_COLOR = "awardedCommentBackgroundColor";
 
     public static void insertThemeToSharedPreferences(CustomTheme customTheme, SharedPreferences themeSharedPreferences) {
         SharedPreferences.Editor editor = themeSharedPreferences.edit();
@@ -113,6 +115,8 @@ public class CustomThemeSharedPreferencesUtils {
         editor.putInt(BACKGROUND_COLOR, customTheme.backgroundColor);
         editor.putInt(CARD_VIEW_BACKGROUND_COLOR, customTheme.cardViewBackgroundColor);
         editor.putInt(READ_POST_CARD_VIEW_BACKGROUND_COLOR, customTheme.readPostCardViewBackgroundColor);
+        editor.putInt(FILLED_CARD_VIEW_BACKGROUND_COLOR, customTheme.filledCardViewBackgroundColor);
+        editor.putInt(READ_POST_FILLED_CARD_VIEW_BACKGROUND_COLOR, customTheme.readPostFilledCardViewBackgroundColor);
         editor.putInt(COMMENT_BACKGROUND_COLOR, customTheme.commentBackgroundColor);
         editor.putInt(BOTTOM_APP_BAR_BACKGROUND_COLOR, customTheme.bottomAppBarBackgroundColor);
         editor.putInt(PRIMARY_ICON_COLOR, customTheme.primaryIconColor);

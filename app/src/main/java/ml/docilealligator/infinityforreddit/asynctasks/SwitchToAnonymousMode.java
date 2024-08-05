@@ -21,6 +21,7 @@ public class SwitchToAnonymousMode {
             accountDao.markAllAccountsNonCurrent();
 
             String redgifsAccessToken = currentAccountSharedPreferences.getString(SharedPreferencesUtils.REDGIFS_ACCESS_TOKEN, "");
+
             currentAccountSharedPreferences.edit().clear().apply();
             currentAccountSharedPreferences.edit().putString(SharedPreferencesUtils.REDGIFS_ACCESS_TOKEN, redgifsAccessToken).apply();
 

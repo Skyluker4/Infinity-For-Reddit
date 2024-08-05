@@ -25,9 +25,9 @@ import retrofit2.Call;
 import retrofit2.Retrofit;
 
 class AccessTokenAuthenticator implements Authenticator {
-    private Retrofit mRetrofit;
-    private RedditDataRoomDatabase mRedditDataRoomDatabase;
-    private SharedPreferences mCurrentAccountSharedPreferences;
+    private final Retrofit mRetrofit;
+    private final RedditDataRoomDatabase mRedditDataRoomDatabase;
+    private final SharedPreferences mCurrentAccountSharedPreferences;
 
     AccessTokenAuthenticator(Retrofit retrofit, RedditDataRoomDatabase accountRoomDatabase, SharedPreferences currentAccountSharedPreferences) {
         mRetrofit = retrofit;
@@ -87,7 +87,7 @@ class AccessTokenAuthenticator implements Authenticator {
                 } else {
                     mRedditDataRoomDatabase.accountDao().updateAccessTokenAndRefreshToken(account.getAccountName(), newAccessToken, newRefreshToken);
                 }
-                if (mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, "").equals(account.getAccountName())) {
+                if (mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, Account.ANONYMOUS_ACCOUNT).equals(account.getAccountName())) {
                     mCurrentAccountSharedPreferences.edit().putString(SharedPreferencesUtils.ACCESS_TOKEN, newAccessToken).apply();
                 }
 

@@ -9,11 +9,7 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
-import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
@@ -22,8 +18,6 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.FetchRules;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
@@ -31,9 +25,11 @@ import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 import ml.docilealligator.infinityforreddit.ReportReason;
 import ml.docilealligator.infinityforreddit.ReportThing;
 import ml.docilealligator.infinityforreddit.Rule;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.ReportReasonRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
+import ml.docilealligator.infinityforreddit.databinding.ActivityReportBinding;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import retrofit2.Retrofit;
 
@@ -44,20 +40,12 @@ public class ReportActivity extends BaseActivity {
     private static final String GENERAL_REASONS_STATE = "GRS";
     private static final String RULES_REASON_STATE = "RRS";
 
-    @BindView(R.id.coordinator_layout_report_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_report_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.toolbar_report_activity)
-    Toolbar toolbar;
-    @BindView(R.id.recycler_view_report_activity)
-    RecyclerView recyclerView;
-    @Inject
-    @Named("oauth")
-    Retrofit mOauthRetrofit;
     @Inject
     @Named("no_oauth")
     Retrofit mRetrofit;
+    @Inject
+    @Named("oauth")
+    Retrofit mOauthRetrofit;
     @Inject
     @Named("default")
     SharedPreferences mSharedPreferences;
@@ -70,12 +58,12 @@ public class ReportActivity extends BaseActivity {
     CustomThemeWrapper mCustomThemeWrapper;
     @Inject
     Executor mExecutor;
-    private String mAccessToken;
     private String mFullname;
     private String mSubredditName;
     private ArrayList<ReportReason> generalReasons;
     private ArrayList<ReportReason> rulesReasons;
     private ReportReasonRecyclerViewAdapter mAdapter;
+    private ActivityReportBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,9 +72,9 @@ public class ReportActivity extends BaseActivity {
         setImmersiveModeNotApplicable();
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_report);
 
-        ButterKnife.bind(this);
+        binding = ActivityReportBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         applyCustomTheme();
 
@@ -95,16 +83,14 @@ public class ReportActivity extends BaseActivity {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(appBarLayout);
+            addOnOffsetChangedListener(binding.appbarLayoutReportActivity);
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarReportActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         mFullname = getIntent().getStringExtra(EXTRA_THING_FULLNAME);
         mSubredditName = getIntent().getStringExtra(EXTRA_SUBREDDIT_NAME);
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
 
         if (savedInstanceState != null) {
             generalReasons = savedInstanceState.getParcelableArrayList(GENERAL_REASONS_STATE);
@@ -116,10 +102,12 @@ public class ReportActivity extends BaseActivity {
         } else {
             mAdapter = new ReportReasonRecyclerViewAdapter(this, mCustomThemeWrapper, ReportReason.getGeneralReasons(this));
         }
-        recyclerView.setAdapter(mAdapter);
+        binding.recyclerViewReportActivity.setAdapter(mAdapter);
 
         if (rulesReasons == null) {
-            FetchRules.fetchRules(mExecutor, new Handler(), mAccessToken == null ? mRetrofit : mOauthRetrofit, mAccessToken, mSubredditName, new FetchRules.FetchRulesListener() {
+            FetchRules.fetchRules(mExecutor, new Handler(),
+                    accountName.equals(Account.ANONYMOUS_ACCOUNT) ? mRetrofit : mOauthRetrofit,
+                    accessToken, accountName, mSubredditName, new FetchRules.FetchRulesListener() {
                 @Override
                 public void success(ArrayList<Rule> rules) {
                     mAdapter.setRules(ReportReason.convertRulesToReasons(rules));
@@ -127,7 +115,7 @@ public class ReportActivity extends BaseActivity {
 
                 @Override
                 public void failed() {
-                    Snackbar.make(coordinatorLayout, R.string.error_loading_rules_without_retry, Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(binding.getRoot(), R.string.error_loading_rules_without_retry, Snackbar.LENGTH_SHORT).show();
                 }
             });
         } else {
@@ -152,7 +140,7 @@ public class ReportActivity extends BaseActivity {
             ReportReason reportReason = mAdapter.getSelectedReason();
             if (reportReason != null) {
                 Toast.makeText(ReportActivity.this, R.string.reporting, Toast.LENGTH_SHORT).show();
-                ReportThing.reportThing(mOauthRetrofit, mAccessToken, mFullname, mSubredditName,
+                ReportThing.reportThing(mOauthRetrofit, accessToken, mFullname, mSubredditName,
                         reportReason.getReasonType(), reportReason.getReportReason(), new ReportThing.ReportThingListener() {
                             @Override
                             public void success() {
@@ -184,18 +172,24 @@ public class ReportActivity extends BaseActivity {
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return mSharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, null, toolbar);
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutReportActivity,
+                null, binding.toolbarReportActivity);
     }
 }

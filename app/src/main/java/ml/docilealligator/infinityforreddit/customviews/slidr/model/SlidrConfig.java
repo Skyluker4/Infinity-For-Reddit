@@ -2,6 +2,7 @@ package ml.docilealligator.infinityforreddit.customviews.slidr.model;
 
 
 import android.graphics.Color;
+
 import androidx.annotation.ColorInt;
 import androidx.annotation.FloatRange;
 import androidx.customview.widget.ViewDragHelper;
@@ -238,7 +239,7 @@ public class SlidrConfig {
      */
     public static class Builder{
 
-        private SlidrConfig config;
+        private final SlidrConfig config;
 
         public Builder(){
             config = new SlidrConfig();

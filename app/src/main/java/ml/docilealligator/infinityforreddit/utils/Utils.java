@@ -38,9 +38,7 @@ import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputLayout;
 
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
@@ -48,12 +46,14 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.noties.markwon.core.spans.CustomTypefaceSpan;
+import ml.docilealligator.infinityforreddit.MediaMetadata;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.SortType;
 import ml.docilealligator.infinityforreddit.UploadedImage;
@@ -73,9 +73,11 @@ public final class Utils {
             Pattern.compile("((?<=[\\s])|^)/[rRuU]/[\\w-]+/{0,1}"),
             Pattern.compile("((?<=[\\s])|^)[rRuU]/[\\w-]+/{0,1}"),
             Pattern.compile("\\^{2,}"),
-            Pattern.compile("!\\[gif]\\(giphy\\|\\w+\\)"),
-            Pattern.compile("!\\[gif]\\(giphy\\|\\w+\\|downsized\\)"),
-            Pattern.compile("!\\[gif]\\(emote\\|\\w+\\|\\w+\\)"),
+            //Sometimes the reddit preview images and gifs have a caption and the markdown will become [caption](image_link)
+            //Matches preview.redd.it and i.redd.it media
+            //For i.redd.it media, it only matches [caption](image-link. Notice there is no ) at the end.
+            //i.redd.it: (\\[(?:(?!((?<!\\\\)\\[)).)*?]\\()?https://i.redd.it/\\w+.(jpg|png|jpeg|gif)"
+            Pattern.compile("((?:\\[(?:(?!(?:(?<!\\\\)\\[)).)*?]\\()?https://preview.redd.it/\\w+.(?:jpg|png|jpeg)(?:(?:\\?+[-a-zA-Z0-9()@:%_+.~#?&/=]*)|))|((?:\\[(?:(?!(?:(?<!\\\\)\\[)).)*?]\\()?https://i.redd.it/\\w+.(?:jpg|png|jpeg|gif))"),
     };
 
     public static String modifyMarkdown(String markdown) {
@@ -86,66 +88,91 @@ public final class Utils {
         return regexed;
     }
 
-    public static String parseInlineGifInComments(String markdown) {
+    public static String parseRedditImagesBlock(String markdown, @Nullable Map<String, MediaMetadata> mediaMetadataMap) {
+        if (mediaMetadataMap == null) {
+            return markdown;
+        }
+
         StringBuilder markdownStringBuilder = new StringBuilder(markdown);
-        Pattern inlineGifPattern = REGEX_PATTERNS[3];
-        Matcher matcher = inlineGifPattern.matcher(markdownStringBuilder);
-        while (matcher.find()) {
-            markdownStringBuilder.replace(matcher.start(), matcher.end(), "[gif](https://i.giphy.com/media/" + markdownStringBuilder.substring(matcher.start() + "![gif](giphy|".length(), matcher.end() - 1) + "/giphy.mp4)");
-            matcher = inlineGifPattern.matcher(markdownStringBuilder);
-        }
+        Pattern previewReddItAndIReddItImagePattern = REGEX_PATTERNS[3];
+        Matcher matcher = previewReddItAndIReddItImagePattern.matcher(markdownStringBuilder);
+        int start = 0;
+        int previewReddItLength = "https://preview.redd.it/".length();
+        int iReddItLength = "https://i.redd.it/".length();
+        while (matcher.find(start)) {
+            if (matcher.group(1) != null) {
+                String id;
+                String caption = null;
+                if (markdownStringBuilder.charAt(matcher.start()) == '[') {
+                    //Has caption
+                    int urlStartIndex = markdownStringBuilder.lastIndexOf("https://preview.redd.it/", matcher.end());
+                    id = markdownStringBuilder.substring(previewReddItLength + urlStartIndex,
+                            markdownStringBuilder.indexOf(".", previewReddItLength + urlStartIndex));
+                    //Minus "](".length()
+                    caption = markdownStringBuilder.substring(matcher.start() + 1, urlStartIndex - 2);
+                } else {
+                    id = markdownStringBuilder.substring(matcher.start() + previewReddItLength,
+                            markdownStringBuilder.indexOf(".", matcher.start() + previewReddItLength));
+                }
 
-        Pattern inlineGifPattern2 = REGEX_PATTERNS[4];
-        Matcher matcher2 = inlineGifPattern2.matcher(markdownStringBuilder);
-        while (matcher2.find()) {
-            markdownStringBuilder.replace(matcher2.start(), matcher2.end(), "[gif](https://i.giphy.com/media/" + markdownStringBuilder.substring(matcher2.start() + "![gif](giphy|".length(), matcher2.end() - "|downsized\\)".length() + 1) + "/giphy.mp4)");
-            matcher2 = inlineGifPattern2.matcher(markdownStringBuilder);
-        }
+                MediaMetadata mediaMetadata = mediaMetadataMap.get(id);
+                if (mediaMetadata == null) {
+                    start = matcher.end();
+                    continue;
+                }
 
-        Pattern inlineGifPattern3 = REGEX_PATTERNS[5];
-        Matcher matcher3 = inlineGifPattern3.matcher(markdownStringBuilder);
-        while (matcher3.find()) {
-            markdownStringBuilder.replace(matcher3.start(), matcher3.end(),
-                    "[gif](https://reddit-meta-production.s3.amazonaws.com/public/fortnitebr/emotes/snoomoji_emotes/"
-                            + markdownStringBuilder.substring(
-                            matcher3.start() + "![gif](emote|".length(), matcher3.end() - 1).replace('|', '/') + ".gif)");
-            matcher3 = inlineGifPattern3.matcher(markdownStringBuilder);
+                mediaMetadata.caption = caption;
+
+                if (markdownStringBuilder.charAt(matcher.start()) == '[') {
+                    //Has caption
+                    markdownStringBuilder.insert(matcher.start(), '!');
+                    start = matcher.end() + 1;
+                } else {
+                    String replacingText = "![](" + markdownStringBuilder.substring(matcher.start(), matcher.end()) + ")";
+                    markdownStringBuilder.replace(matcher.start(), matcher.end(), replacingText);
+                    start = replacingText.length() + matcher.start();
+                }
+
+                matcher = previewReddItAndIReddItImagePattern.matcher(markdownStringBuilder);
+            } else if (matcher.group(2) != null) {
+                String id;
+                String caption = null;
+                if (markdownStringBuilder.charAt(matcher.start()) == '[') {
+                    //Has caption
+                    int urlStartIndex = markdownStringBuilder.lastIndexOf("https://i.redd.it/", matcher.end());
+                    id = markdownStringBuilder.substring(iReddItLength + urlStartIndex,
+                            markdownStringBuilder.indexOf(".", iReddItLength + urlStartIndex));
+                    //Minus "](".length()
+                    caption = markdownStringBuilder.substring(matcher.start() + 1, urlStartIndex - 2);
+                } else {
+                    id = markdownStringBuilder.substring(matcher.start() + iReddItLength, markdownStringBuilder.indexOf(".", matcher.start() + iReddItLength));
+                }
+
+                MediaMetadata mediaMetadata = mediaMetadataMap.get(id);
+                if (mediaMetadata == null) {
+                    start = matcher.end();
+                    continue;
+                }
+
+                mediaMetadata.caption = caption;
+
+                if (markdownStringBuilder.charAt(matcher.start()) == '[') {
+                    //Has caption
+                    markdownStringBuilder.insert(matcher.start(), '!');
+                    start = matcher.end() + 1;
+                } else {
+                    String replacingText = "![](" + markdownStringBuilder.substring(matcher.start(), matcher.end()) + ")";
+                    markdownStringBuilder.replace(matcher.start(), matcher.end(), replacingText);
+                    start = replacingText.length() + matcher.start();
+                }
+
+                matcher = previewReddItAndIReddItImagePattern.matcher(markdownStringBuilder);
+            } else {
+                start = matcher.end();
+            }
         }
 
         return markdownStringBuilder.toString();
-    }
-
-    public static String parseInlineEmotes(String markdown, JSONObject mediaMetadataObject) throws JSONException {
-        JSONArray mediaMetadataNames = mediaMetadataObject.names();
-        if (mediaMetadataNames != null) {
-            for (int i = 0; i < mediaMetadataNames.length(); i++) {
-                if (!mediaMetadataNames.isNull(i)) {
-                    String mediaMetadataKey = mediaMetadataNames.getString(i);
-                    if (mediaMetadataObject.isNull(mediaMetadataKey)) {
-                        continue;
-                    }
-                    JSONObject item = mediaMetadataObject.getJSONObject(mediaMetadataKey);
-                    if (item.isNull(JSONUtils.STATUS_KEY)
-                            || !item.getString(JSONUtils.STATUS_KEY).equals("valid")
-                            || item.isNull(JSONUtils.ID_KEY)
-                            || item.isNull(JSONUtils.T_KEY)
-                            || item.isNull(JSONUtils.S_KEY)) {
-                        continue;
-                    }
-                    String emote_type = item.getString(JSONUtils.T_KEY);
-                    String emote_id = item.getString(JSONUtils.ID_KEY);
-
-                    JSONObject s_key = item.getJSONObject(JSONUtils.S_KEY);
-                    if (s_key.isNull(JSONUtils.U_KEY)) {
-                        continue;
-                    }
-                    String emote_url = s_key.getString(JSONUtils.U_KEY);
-
-                    markdown = markdown.replace("![img](" + emote_id + ")", "[" + emote_type + "](" + emote_url + ") ");
-                }
-            }
-        }
-        return markdown;
     }
 
     public static String trimTrailingWhitespace(String source) {
@@ -370,20 +397,27 @@ public final class Utils {
         executor.execute(() -> {
             try {
                 Bitmap bitmap = Glide.with(context).asBitmap().load(imageUri).submit().get();
-                String imageUrlOrError = UploadImageUtils.uploadImage(oauthRetrofit, uploadMediaRetrofit, accessToken, bitmap);
+                String imageKeyOrError = UploadImageUtils.uploadImage(oauthRetrofit, uploadMediaRetrofit, accessToken, bitmap, true);
                 handler.post(() -> {
-                    if (imageUrlOrError != null && !imageUrlOrError.startsWith("Error: ")) {
+                    if (imageKeyOrError != null && !imageKeyOrError.startsWith("Error: ")) {
                         String fileName = Utils.getFileName(context, imageUri);
                         if (fileName == null) {
-                            fileName = imageUrlOrError;
+                            fileName = imageKeyOrError;
                         }
-                        uploadedImages.add(new UploadedImage(fileName, imageUrlOrError));
+                        uploadedImages.add(new UploadedImage(fileName, imageKeyOrError));
 
                         int start = Math.max(editText.getSelectionStart(), 0);
                         int end = Math.max(editText.getSelectionEnd(), 0);
-                        editText.getText().replace(Math.min(start, end), Math.max(start, end),
-                                "[" + fileName + "](" + imageUrlOrError + ")",
-                                0, "[]()".length() + fileName.length() + imageUrlOrError.length());
+                        int realStart = Math.min(start, end);
+                        if (realStart > 0 && editText.getText().toString().charAt(realStart - 1) != '\n') {
+                            editText.getText().replace(realStart, Math.max(start, end),
+                                    "\n![](" + imageKeyOrError + ")\n",
+                                    0, "\n![]()\n".length() + imageKeyOrError.length());
+                        } else {
+                            editText.getText().replace(realStart, Math.max(start, end),
+                                    "![](" + imageKeyOrError + ")\n",
+                                    0, "![]()\n".length() + imageKeyOrError.length());
+                        }
                         Snackbar.make(coordinatorLayout, R.string.upload_image_success, Snackbar.LENGTH_LONG).show();
                     } else {
                         Toast.makeText(context, R.string.upload_image_failed, Toast.LENGTH_LONG).show();
@@ -465,5 +499,13 @@ public final class Utils {
         } else if (rootView instanceof TextView) {
             ((TextView) rootView).setTypeface(typeface);
         }
+    }
+
+    public static <T> int fixIndexOutOfBounds(T[] array, int index) {
+        return index >= array.length ? array.length - 1 : index;
+    }
+
+    public static <T> int fixIndexOutOfBoundsUsingPredetermined(T[] array, int index, int predeterminedIndex) {
+        return index >= array.length ? predeterminedIndex : index;
     }
 }

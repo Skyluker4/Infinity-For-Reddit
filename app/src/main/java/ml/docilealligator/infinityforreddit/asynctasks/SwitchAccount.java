@@ -5,8 +5,8 @@ import android.os.Handler;
 
 import java.util.concurrent.Executor;
 
-import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 
 public class SwitchAccount {
@@ -22,6 +22,7 @@ public class SwitchAccount {
                     .putString(SharedPreferencesUtils.ACCESS_TOKEN, account.getAccessToken())
                     .putString(SharedPreferencesUtils.ACCOUNT_NAME, account.getAccountName())
                     .putString(SharedPreferencesUtils.ACCOUNT_IMAGE_URL, account.getProfileImageUrl()).apply();
+            currentAccountSharedPreferences.edit().remove(SharedPreferencesUtils.SUBSCRIBED_THINGS_SYNC_TIME).apply();
             handler.post(() -> switchAccountListener.switched(account));
         });
 

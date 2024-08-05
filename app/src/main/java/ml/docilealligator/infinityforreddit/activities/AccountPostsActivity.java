@@ -52,8 +52,6 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
     SharedPreferences mCurrentAccountSharedPreferences;
     @Inject
     CustomThemeWrapper mCustomThemeWrapper;
-    private String mAccessToken;
-    private String mAccountName;
     private String mUserWhere;
     private Fragment mFragment;
     private PostLayoutBottomSheetFragment postLayoutBottomSheetFragment;
@@ -100,8 +98,6 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
             binding.accountPostsToolbar.setTitle(R.string.downvoted);
         } else if (mUserWhere.equals(PostPagingSource.USER_WHERE_HIDDEN)) {
             binding.accountPostsToolbar.setTitle(R.string.hidden);
-        } else if (mUserWhere.equals(PostPagingSource.USER_WHERE_GILDED)) {
-            binding.accountPostsToolbar.setTitle(R.string.gilded);
         }
 
         setSupportActionBar(binding.accountPostsToolbar);
@@ -109,9 +105,6 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
         setToolbarGoToTop(binding.accountPostsToolbar);
 
         postLayoutBottomSheetFragment = new PostLayoutBottomSheetFragment();
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
 
         if (savedInstanceState != null) {
             mFragment = getSupportFragmentManager().getFragment(savedInstanceState, FRAGMENT_OUT_STATE);
@@ -138,7 +131,12 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
@@ -154,10 +152,8 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
         mFragment = new PostFragment();
         Bundle bundle = new Bundle();
         bundle.putInt(PostFragment.EXTRA_POST_TYPE, PostPagingSource.TYPE_USER);
-        bundle.putString(PostFragment.EXTRA_USER_NAME, mAccountName);
+        bundle.putString(PostFragment.EXTRA_USER_NAME, accountName);
         bundle.putString(PostFragment.EXTRA_USER_WHERE, mUserWhere);
-        bundle.putString(PostFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
-        bundle.putString(PostFragment.EXTRA_ACCOUNT_NAME, mAccountName);
         bundle.putBoolean(PostFragment.EXTRA_DISABLE_READ_POSTS, true);
         mFragment.setArguments(bundle);
         getSupportFragmentManager().beginTransaction()
@@ -227,7 +223,7 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
     @Override
     public void postLayoutSelected(int postLayout) {
         if (mFragment != null) {
-            mPostLayoutSharedPreferences.edit().putInt(SharedPreferencesUtils.POST_LAYOUT_USER_POST_BASE + mAccountName, postLayout).apply();
+            mPostLayoutSharedPreferences.edit().putInt(SharedPreferencesUtils.POST_LAYOUT_USER_POST_BASE + accountName, postLayout).apply();
             ((FragmentCommunicator) mFragment).changePostLayout(postLayout);
         }
     }

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <ml.docilealligator.infinityforreddit.customviews.CustomFontSwitchPreference
         app:defaultValue="true"
@@ -23,11 +22,6 @@
         app:defaultValue="false"
         app:key="hide_post_flair"
         app:title="@string/settings_hide_post_flair" />
-
-    <ml.docilealligator.infinityforreddit.customviews.CustomFontSwitchPreference
-        app:defaultValue="false"
-        app:key="hide_the_number_of_awards"
-        app:title="@string/settings_hide_the_number_of_awards" />
 
     <ml.docilealligator.infinityforreddit.customviews.CustomFontSwitchPreference
         app:defaultValue="false"

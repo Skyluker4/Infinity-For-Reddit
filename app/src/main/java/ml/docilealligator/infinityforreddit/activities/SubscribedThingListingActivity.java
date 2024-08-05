@@ -15,11 +15,9 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.widget.Toolbar;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.view.inputmethod.EditorInfoCompat;
 import androidx.fragment.app.Fragment;
@@ -27,11 +25,7 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentPagerAdapter;
 import androidx.viewpager.widget.ViewPager;
 
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.tabs.TabLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -42,21 +36,19 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.FetchSubscribedThing;
 import ml.docilealligator.infinityforreddit.FragmentCommunicator;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.asynctasks.DeleteMultiredditInDatabase;
 import ml.docilealligator.infinityforreddit.asynctasks.InsertMultireddit;
 import ml.docilealligator.infinityforreddit.asynctasks.InsertSubscribedThings;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
-import ml.docilealligator.infinityforreddit.customviews.ViewPagerBugFixed;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
-import ml.docilealligator.infinityforreddit.customviews.slidr.widget.SliderPanel;
+import ml.docilealligator.infinityforreddit.databinding.ActivitySubscribedThingListingBinding;
 import ml.docilealligator.infinityforreddit.events.GoBackToMainPageEvent;
 import ml.docilealligator.infinityforreddit.events.RefreshMultiRedditsEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
@@ -73,30 +65,12 @@ import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 import retrofit2.Retrofit;
 
-;
-
 public class SubscribedThingListingActivity extends BaseActivity implements ActivityToolbarInterface {
 
     public static final String EXTRA_SHOW_MULTIREDDITS = "ESM";
     private static final String INSERT_SUBSCRIBED_SUBREDDIT_STATE = "ISSS";
     private static final String INSERT_MULTIREDDIT_STATE = "IMS";
 
-    @BindView(R.id.coordinator_layout_subscribed_thing_listing_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_subscribed_thing_listing_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_subscribed_thing_listing_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_subscribed_thing_listing_activity)
-    Toolbar toolbar;
-    @BindView(R.id.search_edit_text_subscribed_thing_listing_activity)
-    EditText searchEditText;
-    @BindView(R.id.tab_layout_subscribed_thing_listing_activity)
-    TabLayout tabLayout;
-    @BindView(R.id.view_pager_subscribed_thing_listing_activity)
-    ViewPagerBugFixed viewPager;
-    @BindView(R.id.fab_subscribed_thing_listing_activity)
-    FloatingActionButton fab;
     @Inject
     @Named("oauth")
     Retrofit mOauthRetrofit;
@@ -112,13 +86,12 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
     CustomThemeWrapper mCustomThemeWrapper;
     @Inject
     Executor mExecutor;
-    private String mAccessToken;
-    private String mAccountName;
     private boolean mInsertSuccess = false;
     private boolean mInsertMultiredditSuccess = false;
     private boolean showMultiReddits = false;
     private SectionsPagerAdapter sectionsPagerAdapter;
     private Menu mMenu;
+    private ActivitySubscribedThingListingBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,9 +99,8 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
 
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_subscribed_thing_listing);
-
-        ButterKnife.bind(this);
+        binding = ActivitySubscribedThingListingBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
@@ -142,7 +114,7 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(appBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutSubscribedThingListingActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -151,23 +123,20 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(toolbar);
+                adjustToolbar(binding.toolbarSubscribedThingListingActivity);
 
                 int navBarHeight = getNavBarHeight();
                 if (navBarHeight > 0) {
-                    CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) fab.getLayoutParams();
+                    CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) binding.fabSubscribedThingListingActivity.getLayoutParams();
                     params.bottomMargin += navBarHeight;
-                    fab.setLayoutParams(params);
+                    binding.fabSubscribedThingListingActivity.setLayoutParams(params);
                 }
             }
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarSubscribedThingListingActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        setToolbarGoToTop(toolbar);
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, "-");
+        setToolbarGoToTop(binding.toolbarSubscribedThingListingActivity);
 
         if (savedInstanceState != null) {
             mInsertSuccess = savedInstanceState.getBoolean(INSERT_SUBSCRIBED_SUBREDDIT_STATE);
@@ -176,11 +145,11 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
             showMultiReddits = getIntent().getBooleanExtra(EXTRA_SHOW_MULTIREDDITS, false);
         }
 
-        if (mAccessToken == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            searchEditText.setImeOptions(searchEditText.getImeOptions() | EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING);
+        if (accountName.equals(Account.ANONYMOUS_ACCOUNT) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            binding.searchEditTextSubscribedThingListingActivity.setImeOptions(binding.searchEditTextSubscribedThingListingActivity.getImeOptions() | EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING);
         }
 
-        searchEditText.addTextChangedListener(new TextWatcher() {
+        binding.searchEditTextSubscribedThingListingActivity.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
 
@@ -205,51 +174,57 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
-        applyTabLayoutTheme(tabLayout);
-        applyFABTheme(fab);
-        searchEditText.setTextColor(mCustomThemeWrapper.getToolbarPrimaryTextAndIconColor());
-        searchEditText.setHintTextColor(mCustomThemeWrapper.getToolbarSecondaryTextColor());
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutSubscribedThingListingActivity,
+                binding.collapsingToolbarLayoutSubscribedThingListingActivity, binding.toolbarSubscribedThingListingActivity);
+        applyTabLayoutTheme(binding.tabLayoutSubscribedThingListingActivity);
+        applyFABTheme(binding.fabSubscribedThingListingActivity);
+        binding.searchEditTextSubscribedThingListingActivity.setTextColor(mCustomThemeWrapper.getToolbarPrimaryTextAndIconColor());
+        binding.searchEditTextSubscribedThingListingActivity.setHintTextColor(mCustomThemeWrapper.getToolbarSecondaryTextColor());
     }
 
     private void initializeViewPagerAndLoadSubscriptions() {
-        fab.setOnClickListener(view -> {
+        binding.fabSubscribedThingListingActivity.setOnClickListener(view -> {
             Intent intent = new Intent(this, CreateMultiRedditActivity.class);
             startActivity(intent);
         });
         sectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
-        viewPager.setAdapter(sectionsPagerAdapter);
-        viewPager.setOffscreenPageLimit(3);
-        if (viewPager.getCurrentItem() != 2) {
-            fab.hide();
+        binding.viewPagerSubscribedThingListingActivity.setAdapter(sectionsPagerAdapter);
+        binding.viewPagerSubscribedThingListingActivity.setOffscreenPageLimit(3);
+        if (binding.viewPagerSubscribedThingListingActivity.getCurrentItem() != 2) {
+            binding.fabSubscribedThingListingActivity.hide();
         }
-        viewPager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
+        binding.viewPagerSubscribedThingListingActivity.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
             @Override
             public void onPageSelected(int position) {
                 if (position == 0) {
                     unlockSwipeRightToGoBack();
-                    fab.hide();
+                    binding.fabSubscribedThingListingActivity.hide();
                 } else {
                     lockSwipeRightToGoBack();
                     if (position != 2) {
-                        fab.hide();
+                        binding.fabSubscribedThingListingActivity.hide();
                     } else {
-                        fab.show();
+                        binding.fabSubscribedThingListingActivity.show();
                     }
                 }
             }
         });
-        tabLayout.setupWithViewPager(viewPager);
+        binding.tabLayoutSubscribedThingListingActivity.setupWithViewPager(binding.viewPagerSubscribedThingListingActivity);
 
         if (showMultiReddits) {
-            viewPager.setCurrentItem(2, false);
+            binding.viewPagerSubscribedThingListingActivity.setCurrentItem(2, false);
         }
 
         loadSubscriptions(false);
@@ -267,18 +242,18 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == R.id.action_search_subscribed_thing_listing_activity) {
             item.setVisible(false);
-            searchEditText.setVisibility(View.VISIBLE);
-            searchEditText.requestFocus();
-            if (searchEditText.requestFocus()) {
+            binding.searchEditTextSubscribedThingListingActivity.setVisibility(View.VISIBLE);
+            binding.searchEditTextSubscribedThingListingActivity.requestFocus();
+            if (binding.searchEditTextSubscribedThingListingActivity.requestFocus()) {
                 InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+                imm.showSoftInput(binding.searchEditTextSubscribedThingListingActivity, InputMethodManager.SHOW_IMPLICIT);
             }
             return true;
         } else if (item.getItemId() == android.R.id.home) {
-            if (searchEditText.getVisibility() == View.VISIBLE) {
+            if (binding.searchEditTextSubscribedThingListingActivity.getVisibility() == View.VISIBLE) {
                 Utils.hideKeyboard(this);
-                searchEditText.setVisibility(View.GONE);
-                searchEditText.setText("");
+                binding.searchEditTextSubscribedThingListingActivity.setVisibility(View.GONE);
+                binding.searchEditTextSubscribedThingListingActivity.setText("");
                 mMenu.findItem(R.id.action_search_subscribed_thing_listing_activity).setVisible(true);
                 sectionsPagerAdapter.changeSearchQuery("");
                 return true;
@@ -292,10 +267,10 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
 
     @Override
     public void onBackPressed() {
-        if (searchEditText.getVisibility() == View.VISIBLE) {
+        if (binding.searchEditTextSubscribedThingListingActivity.getVisibility() == View.VISIBLE) {
             Utils.hideKeyboard(this);
-            searchEditText.setVisibility(View.GONE);
-            searchEditText.setText("");
+            binding.searchEditTextSubscribedThingListingActivity.setVisibility(View.GONE);
+            binding.searchEditTextSubscribedThingListingActivity.setText("");
             mMenu.findItem(R.id.action_search_subscribed_thing_listing_activity).setVisible(true);
             sectionsPagerAdapter.changeSearchQuery("");
         } else {
@@ -317,8 +292,12 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
     }
 
     public void loadSubscriptions(boolean forceLoad) {
-        if (mAccessToken != null && !(!forceLoad && mInsertSuccess)) {
-            FetchSubscribedThing.fetchSubscribedThing(mOauthRetrofit, mAccessToken, mAccountName, null,
+        if (!forceLoad && System.currentTimeMillis() - mCurrentAccountSharedPreferences.getLong(SharedPreferencesUtils.SUBSCRIBED_THINGS_SYNC_TIME, 0L) < 24 * 60 * 60 * 1000) {
+            return;
+        }
+
+        if (!accountName.equals(Account.ANONYMOUS_ACCOUNT) && !(!forceLoad && mInsertSuccess)) {
+            FetchSubscribedThing.fetchSubscribedThing(mOauthRetrofit, accessToken, accountName, null,
                     new ArrayList<>(), new ArrayList<>(),
                     new ArrayList<>(),
                     new FetchSubscribedThing.FetchSubscribedThingListener() {
@@ -326,11 +305,12 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
                         public void onFetchSubscribedThingSuccess(ArrayList<SubscribedSubredditData> subscribedSubredditData,
                                                                   ArrayList<SubscribedUserData> subscribedUserData,
                                                                   ArrayList<SubredditData> subredditData) {
+                            mCurrentAccountSharedPreferences.edit().putLong(SharedPreferencesUtils.SUBSCRIBED_THINGS_SYNC_TIME, System.currentTimeMillis()).apply();
                             InsertSubscribedThings.insertSubscribedThings(
                                     mExecutor,
                                     new Handler(),
                                     mRedditDataRoomDatabase,
-                                    mAccountName,
+                                    accountName,
                                     subscribedSubredditData,
                                     subscribedUserData,
                                     subredditData,
@@ -356,23 +336,23 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
     }
 
     public void showFabInMultiredditTab() {
-        if (viewPager.getCurrentItem() == 2) {
-            fab.show();
+        if (binding.viewPagerSubscribedThingListingActivity.getCurrentItem() == 2) {
+            binding.fabSubscribedThingListingActivity.show();
         }
     }
 
     public void hideFabInMultiredditTab() {
-        if (viewPager.getCurrentItem() == 2) {
-            fab.hide();
+        if (binding.viewPagerSubscribedThingListingActivity.getCurrentItem() == 2) {
+            binding.fabSubscribedThingListingActivity.hide();
         }
     }
 
     private void loadMultiReddits() {
-        if (mAccessToken != null) {
-            FetchMyMultiReddits.fetchMyMultiReddits(mOauthRetrofit, mAccessToken, new FetchMyMultiReddits.FetchMyMultiRedditsListener() {
+        if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
+            FetchMyMultiReddits.fetchMyMultiReddits(mOauthRetrofit, accessToken, new FetchMyMultiReddits.FetchMyMultiRedditsListener() {
                 @Override
                 public void success(ArrayList<MultiReddit> multiReddits) {
-                    InsertMultireddit.insertMultireddits(mExecutor, new Handler(), mRedditDataRoomDatabase, multiReddits, mAccountName, () -> {
+                    InsertMultireddit.insertMultireddits(mExecutor, new Handler(), mRedditDataRoomDatabase, multiReddits, accountName, () -> {
                         mInsertMultiredditSuccess = true;
                         sectionsPagerAdapter.stopMultiRedditRefreshProgressbar();
                     });
@@ -394,13 +374,13 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
                 .setMessage(R.string.delete_multi_reddit_dialog_message)
                 .setPositiveButton(R.string.delete, (dialogInterface, i)
                         -> {
-                    if (mAccessToken == null) {
-                        DeleteMultiredditInDatabase.deleteMultiredditInDatabase(mExecutor, new Handler(), mRedditDataRoomDatabase, mAccountName, multiReddit.getPath(),
+                    if (accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
+                        DeleteMultiredditInDatabase.deleteMultiredditInDatabase(mExecutor, new Handler(), mRedditDataRoomDatabase, accountName, multiReddit.getPath(),
                                 () -> Toast.makeText(SubscribedThingListingActivity.this,
                                         R.string.delete_multi_reddit_success, Toast.LENGTH_SHORT).show());
                     } else {
                         DeleteMultiReddit.deleteMultiReddit(mExecutor, new Handler(), mOauthRetrofit, mRedditDataRoomDatabase,
-                                mAccessToken, mAccountName, multiReddit.getPath(), new DeleteMultiReddit.DeleteMultiRedditListener() {
+                                accessToken, accountName, multiReddit.getPath(), new DeleteMultiReddit.DeleteMultiRedditListener() {
                                     @Override
                                     public void success() {
                                         Toast.makeText(SubscribedThingListingActivity.this,
@@ -474,24 +454,18 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
                     SubscribedSubredditsListingFragment fragment = new SubscribedSubredditsListingFragment();
                     Bundle bundle = new Bundle();
                     bundle.putBoolean(SubscribedSubredditsListingFragment.EXTRA_IS_SUBREDDIT_SELECTION, false);
-                    bundle.putString(SubscribedSubredditsListingFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-                    bundle.putString(SubscribedSubredditsListingFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
                     fragment.setArguments(bundle);
                     return fragment;
                 }
                 case 1: {
                     FollowedUsersListingFragment fragment = new FollowedUsersListingFragment();
                     Bundle bundle = new Bundle();
-                    bundle.putString(FollowedUsersListingFragment.EXTRA_ACCOUNT_NAME, mAccountName == null ? "-" : mAccountName);
-                    bundle.putString(FollowedUsersListingFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
                     fragment.setArguments(bundle);
                     return fragment;
                 }
                 default: {
                     MultiRedditListingFragment fragment = new MultiRedditListingFragment();
                     Bundle bundle = new Bundle();
-                    bundle.putString(MultiRedditListingFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
-                    bundle.putString(MultiRedditListingFragment.EXTRA_ACCOUNT_NAME, mAccountName == null ? "-" : mAccountName);
                     fragment.setArguments(bundle);
                     return fragment;
                 }
@@ -548,9 +522,9 @@ public class SubscribedThingListingActivity extends BaseActivity implements Acti
         }
 
         void goBackToTop() {
-            if (viewPager.getCurrentItem() == 0) {
+            if (binding.viewPagerSubscribedThingListingActivity.getCurrentItem() == 0) {
                 subscribedSubredditsListingFragment.goBackToTop();
-            } else if (viewPager.getCurrentItem() == 1) {
+            } else if (binding.viewPagerSubscribedThingListingActivity.getCurrentItem() == 1) {
                 followedUsersListingFragment.goBackToTop();
             } else {
                 multiRedditListingFragment.goBackToTop();

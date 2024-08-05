@@ -118,15 +118,6 @@ abstract class NetworkModule {
     }
 
     @Provides
-    @Named("gfycat")
-    @Singleton
-    static Retrofit provideGfycatRetrofit(@Named("base") Retrofit retrofit) {
-        return retrofit.newBuilder()
-                .baseUrl(APIUtils.GFYCAT_API_BASE_URI)
-                .build();
-    }
-
-    @Provides
     @Named("RedgifsAccessTokenAuthenticator")
     static Interceptor redgifsAccessTokenAuthenticator(@Named("current_account") SharedPreferences currentAccountSharedPreferences) {
         return new RedgifsAccessTokenAuthenticator(currentAccountSharedPreferences);
@@ -197,6 +188,15 @@ abstract class NetworkModule {
     static Retrofit provideStreamableRetrofit(@Named("base") Retrofit retrofit) {
         return retrofit.newBuilder()
                 .baseUrl(APIUtils.STREAMABLE_API_BASE_URI)
+                .build();
+    }
+
+    @Provides
+    @Named("online_custom_themes")
+    @Singleton
+    static Retrofit provideOnlineCustomThemesRetrofit(@Named("base") Retrofit retrofit) {
+        return retrofit.newBuilder()
+                .baseUrl(APIUtils.ONLINE_CUSTOM_THEMES_API_BASE_URI)
                 .build();
     }
 

@@ -1,6 +1,8 @@
 package ml.docilealligator.infinityforreddit.customtheme;
 
 import android.graphics.Color;
+import android.os.Parcel;
+import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
@@ -23,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Map;
 
 @Entity(tableName = "custom_themes")
-public class CustomTheme {
+public class CustomTheme implements Parcelable {
     @PrimaryKey
     @NonNull
     @ColumnInfo(name = "name")
@@ -64,6 +66,10 @@ public class CustomTheme {
     public int cardViewBackgroundColor;
     @ColumnInfo(name = "read_post_card_view_background_color")
     public int readPostCardViewBackgroundColor;
+    @ColumnInfo(name = "filled_card_view_background_color")
+    public int filledCardViewBackgroundColor;
+    @ColumnInfo(name = "read_post_filled_card_view_background_color")
+    public int readPostFilledCardViewBackgroundColor;
     @ColumnInfo(name = "comment_background_color")
     public int commentBackgroundColor;
     @ColumnInfo(name = "bottom_app_bar_background_color")
@@ -209,6 +215,111 @@ public class CustomTheme {
         this.name = name;
     }
 
+    protected CustomTheme(Parcel in) {
+        name = in.readString();
+        isLightTheme = in.readByte() != 0;
+        isDarkTheme = in.readByte() != 0;
+        isAmoledTheme = in.readByte() != 0;
+        colorPrimary = in.readInt();
+        colorPrimaryDark = in.readInt();
+        colorAccent = in.readInt();
+        colorPrimaryLightTheme = in.readInt();
+        primaryTextColor = in.readInt();
+        secondaryTextColor = in.readInt();
+        postTitleColor = in.readInt();
+        postContentColor = in.readInt();
+        readPostTitleColor = in.readInt();
+        readPostContentColor = in.readInt();
+        commentColor = in.readInt();
+        buttonTextColor = in.readInt();
+        backgroundColor = in.readInt();
+        cardViewBackgroundColor = in.readInt();
+        readPostCardViewBackgroundColor = in.readInt();
+        filledCardViewBackgroundColor = in.readInt();
+        readPostFilledCardViewBackgroundColor = in.readInt();
+        commentBackgroundColor = in.readInt();
+        bottomAppBarBackgroundColor = in.readInt();
+        primaryIconColor = in.readInt();
+        bottomAppBarIconColor = in.readInt();
+        postIconAndInfoColor = in.readInt();
+        commentIconAndInfoColor = in.readInt();
+        toolbarPrimaryTextAndIconColor = in.readInt();
+        toolbarSecondaryTextColor = in.readInt();
+        circularProgressBarBackground = in.readInt();
+        mediaIndicatorIconColor = in.readInt();
+        mediaIndicatorBackgroundColor = in.readInt();
+        tabLayoutWithExpandedCollapsingToolbarTabBackground = in.readInt();
+        tabLayoutWithExpandedCollapsingToolbarTextColor = in.readInt();
+        tabLayoutWithExpandedCollapsingToolbarTabIndicator = in.readInt();
+        tabLayoutWithCollapsedCollapsingToolbarTabBackground = in.readInt();
+        tabLayoutWithCollapsedCollapsingToolbarTextColor = in.readInt();
+        tabLayoutWithCollapsedCollapsingToolbarTabIndicator = in.readInt();
+        navBarColor = in.readInt();
+        upvoted = in.readInt();
+        downvoted = in.readInt();
+        postTypeBackgroundColor = in.readInt();
+        postTypeTextColor = in.readInt();
+        spoilerBackgroundColor = in.readInt();
+        spoilerTextColor = in.readInt();
+        nsfwBackgroundColor = in.readInt();
+        nsfwTextColor = in.readInt();
+        flairBackgroundColor = in.readInt();
+        flairTextColor = in.readInt();
+        awardsBackgroundColor = in.readInt();
+        awardsTextColor = in.readInt();
+        archivedTint = in.readInt();
+        lockedIconTint = in.readInt();
+        crosspostIconTint = in.readInt();
+        upvoteRatioIconTint = in.readInt();
+        stickiedPostIconTint = in.readInt();
+        noPreviewPostTypeIconTint = in.readInt();
+        subscribed = in.readInt();
+        unsubscribed = in.readInt();
+        username = in.readInt();
+        subreddit = in.readInt();
+        authorFlairTextColor = in.readInt();
+        submitter = in.readInt();
+        moderator = in.readInt();
+        currentUser = in.readInt();
+        singleCommentThreadBackgroundColor = in.readInt();
+        unreadMessageBackgroundColor = in.readInt();
+        dividerColor = in.readInt();
+        noPreviewPostTypeBackgroundColor = in.readInt();
+        voteAndReplyUnavailableButtonColor = in.readInt();
+        commentVerticalBarColor1 = in.readInt();
+        commentVerticalBarColor2 = in.readInt();
+        commentVerticalBarColor3 = in.readInt();
+        commentVerticalBarColor4 = in.readInt();
+        commentVerticalBarColor5 = in.readInt();
+        commentVerticalBarColor6 = in.readInt();
+        commentVerticalBarColor7 = in.readInt();
+        fabIconColor = in.readInt();
+        chipTextColor = in.readInt();
+        linkColor = in.readInt();
+        receivedMessageTextColor = in.readInt();
+        sentMessageTextColor = in.readInt();
+        receivedMessageBackgroundColor = in.readInt();
+        sentMessageBackgroundColor = in.readInt();
+        sendMessageIconColor = in.readInt();
+        fullyCollapsedCommentBackgroundColor = in.readInt();
+        awardedCommentBackgroundColor = in.readInt();
+        isLightStatusBar = in.readByte() != 0;
+        isLightNavBar = in.readByte() != 0;
+        isChangeStatusBarIconColorAfterToolbarCollapsedInImmersiveInterface = in.readByte() != 0;
+    }
+
+    public static final Creator<CustomTheme> CREATOR = new Creator<CustomTheme>() {
+        @Override
+        public CustomTheme createFromParcel(Parcel in) {
+            return new CustomTheme(in);
+        }
+
+        @Override
+        public CustomTheme[] newArray(int size) {
+            return new CustomTheme[size];
+        }
+    };
+
     public String getJSONModel() {
         Gson gson = getGsonBuilder().create();
         return gson.toJson(this);
@@ -255,73 +366,174 @@ public class CustomTheme {
         customTheme.backgroundColor = customThemeSettingsItems.get(19).colorValue;
         customTheme.cardViewBackgroundColor = customThemeSettingsItems.get(20).colorValue;
         customTheme.readPostCardViewBackgroundColor = customThemeSettingsItems.get(21).colorValue;
-        customTheme.commentBackgroundColor = customThemeSettingsItems.get(22).colorValue;
-        customTheme.fullyCollapsedCommentBackgroundColor = customThemeSettingsItems.get(23).colorValue;
-        customTheme.awardedCommentBackgroundColor = customThemeSettingsItems.get(24).colorValue;
-        customTheme.receivedMessageBackgroundColor = customThemeSettingsItems.get(25).colorValue;
-        customTheme.sentMessageBackgroundColor = customThemeSettingsItems.get(26).colorValue;
-        customTheme.bottomAppBarBackgroundColor = customThemeSettingsItems.get(27).colorValue;
-        customTheme.primaryIconColor = customThemeSettingsItems.get(28).colorValue;
-        customTheme.bottomAppBarIconColor = customThemeSettingsItems.get(29).colorValue;
-        customTheme.postIconAndInfoColor = customThemeSettingsItems.get(30).colorValue;
-        customTheme.commentIconAndInfoColor = customThemeSettingsItems.get(31).colorValue;
-        customTheme.fabIconColor = customThemeSettingsItems.get(32).colorValue;
-        customTheme.sendMessageIconColor = customThemeSettingsItems.get(33).colorValue;
-        customTheme.toolbarPrimaryTextAndIconColor = customThemeSettingsItems.get(34).colorValue;
-        customTheme.toolbarSecondaryTextColor = customThemeSettingsItems.get(35).colorValue;
-        customTheme.circularProgressBarBackground = customThemeSettingsItems.get(36).colorValue;
-        customTheme.mediaIndicatorIconColor = customThemeSettingsItems.get(37).colorValue;
-        customTheme.mediaIndicatorBackgroundColor = customThemeSettingsItems.get(38).colorValue;
-        customTheme.tabLayoutWithExpandedCollapsingToolbarTabBackground = customThemeSettingsItems.get(39).colorValue;
-        customTheme.tabLayoutWithExpandedCollapsingToolbarTextColor = customThemeSettingsItems.get(40).colorValue;
-        customTheme.tabLayoutWithExpandedCollapsingToolbarTabIndicator = customThemeSettingsItems.get(41).colorValue;
-        customTheme.tabLayoutWithCollapsedCollapsingToolbarTabBackground = customThemeSettingsItems.get(42).colorValue;
-        customTheme.tabLayoutWithCollapsedCollapsingToolbarTextColor = customThemeSettingsItems.get(43).colorValue;
-        customTheme.tabLayoutWithCollapsedCollapsingToolbarTabIndicator = customThemeSettingsItems.get(44).colorValue;
-        customTheme.upvoted = customThemeSettingsItems.get(45).colorValue;
-        customTheme.downvoted = customThemeSettingsItems.get(46).colorValue;
-        customTheme.postTypeBackgroundColor = customThemeSettingsItems.get(47).colorValue;
-        customTheme.postTypeTextColor = customThemeSettingsItems.get(48).colorValue;
-        customTheme.spoilerBackgroundColor = customThemeSettingsItems.get(49).colorValue;
-        customTheme.spoilerTextColor = customThemeSettingsItems.get(50).colorValue;
-        customTheme.nsfwBackgroundColor = customThemeSettingsItems.get(51).colorValue;
-        customTheme.nsfwTextColor = customThemeSettingsItems.get(52).colorValue;
-        customTheme.flairBackgroundColor = customThemeSettingsItems.get(53).colorValue;
-        customTheme.flairTextColor = customThemeSettingsItems.get(54).colorValue;
-        customTheme.awardsBackgroundColor = customThemeSettingsItems.get(55).colorValue;
-        customTheme.awardsTextColor = customThemeSettingsItems.get(56).colorValue;
-        customTheme.archivedTint = customThemeSettingsItems.get(57).colorValue;
-        customTheme.lockedIconTint = customThemeSettingsItems.get(58).colorValue;
-        customTheme.crosspostIconTint = customThemeSettingsItems.get(59).colorValue;
-        customTheme.upvoteRatioIconTint = customThemeSettingsItems.get(60).colorValue;
-        customTheme.stickiedPostIconTint = customThemeSettingsItems.get(61).colorValue;
-        customTheme.noPreviewPostTypeIconTint = customThemeSettingsItems.get(62).colorValue;
-        customTheme.subscribed = customThemeSettingsItems.get(63).colorValue;
-        customTheme.unsubscribed = customThemeSettingsItems.get(64).colorValue;
-        customTheme.username = customThemeSettingsItems.get(65).colorValue;
-        customTheme.subreddit = customThemeSettingsItems.get(66).colorValue;
-        customTheme.authorFlairTextColor = customThemeSettingsItems.get(67).colorValue;
-        customTheme.submitter = customThemeSettingsItems.get(68).colorValue;
-        customTheme.moderator = customThemeSettingsItems.get(69).colorValue;
-        customTheme.currentUser = customThemeSettingsItems.get(70).colorValue;
-        customTheme.singleCommentThreadBackgroundColor = customThemeSettingsItems.get(71).colorValue;
-        customTheme.unreadMessageBackgroundColor = customThemeSettingsItems.get(72).colorValue;
-        customTheme.dividerColor = customThemeSettingsItems.get(73).colorValue;
-        customTheme.noPreviewPostTypeBackgroundColor = customThemeSettingsItems.get(74).colorValue;
-        customTheme.voteAndReplyUnavailableButtonColor = customThemeSettingsItems.get(75).colorValue;
-        customTheme.commentVerticalBarColor1 = customThemeSettingsItems.get(76).colorValue;
-        customTheme.commentVerticalBarColor2 = customThemeSettingsItems.get(77).colorValue;
-        customTheme.commentVerticalBarColor3 = customThemeSettingsItems.get(78).colorValue;
-        customTheme.commentVerticalBarColor4 = customThemeSettingsItems.get(79).colorValue;
-        customTheme.commentVerticalBarColor5 = customThemeSettingsItems.get(80).colorValue;
-        customTheme.commentVerticalBarColor6 = customThemeSettingsItems.get(81).colorValue;
-        customTheme.commentVerticalBarColor7 = customThemeSettingsItems.get(82).colorValue;
-        customTheme.navBarColor = customThemeSettingsItems.get(83).colorValue;
-        customTheme.isLightStatusBar = customThemeSettingsItems.get(84).isEnabled;
-        customTheme.isLightNavBar = customThemeSettingsItems.get(85).isEnabled;
-        customTheme.isChangeStatusBarIconColorAfterToolbarCollapsedInImmersiveInterface = customThemeSettingsItems.get(86).isEnabled;
+        customTheme.filledCardViewBackgroundColor = customThemeSettingsItems.get(22).colorValue;
+        customTheme.readPostFilledCardViewBackgroundColor = customThemeSettingsItems.get(23).colorValue;
+        customTheme.commentBackgroundColor = customThemeSettingsItems.get(24).colorValue;
+        customTheme.fullyCollapsedCommentBackgroundColor = customThemeSettingsItems.get(25).colorValue;
+        customTheme.awardedCommentBackgroundColor = customThemeSettingsItems.get(26).colorValue;
+        customTheme.receivedMessageBackgroundColor = customThemeSettingsItems.get(27).colorValue;
+        customTheme.sentMessageBackgroundColor = customThemeSettingsItems.get(28).colorValue;
+        customTheme.bottomAppBarBackgroundColor = customThemeSettingsItems.get(29).colorValue;
+        customTheme.primaryIconColor = customThemeSettingsItems.get(30).colorValue;
+        customTheme.bottomAppBarIconColor = customThemeSettingsItems.get(31).colorValue;
+        customTheme.postIconAndInfoColor = customThemeSettingsItems.get(32).colorValue;
+        customTheme.commentIconAndInfoColor = customThemeSettingsItems.get(33).colorValue;
+        customTheme.fabIconColor = customThemeSettingsItems.get(34).colorValue;
+        customTheme.sendMessageIconColor = customThemeSettingsItems.get(35).colorValue;
+        customTheme.toolbarPrimaryTextAndIconColor = customThemeSettingsItems.get(36).colorValue;
+        customTheme.toolbarSecondaryTextColor = customThemeSettingsItems.get(37).colorValue;
+        customTheme.circularProgressBarBackground = customThemeSettingsItems.get(38).colorValue;
+        customTheme.mediaIndicatorIconColor = customThemeSettingsItems.get(39).colorValue;
+        customTheme.mediaIndicatorBackgroundColor = customThemeSettingsItems.get(40).colorValue;
+        customTheme.tabLayoutWithExpandedCollapsingToolbarTabBackground = customThemeSettingsItems.get(41).colorValue;
+        customTheme.tabLayoutWithExpandedCollapsingToolbarTextColor = customThemeSettingsItems.get(42).colorValue;
+        customTheme.tabLayoutWithExpandedCollapsingToolbarTabIndicator = customThemeSettingsItems.get(43).colorValue;
+        customTheme.tabLayoutWithCollapsedCollapsingToolbarTabBackground = customThemeSettingsItems.get(44).colorValue;
+        customTheme.tabLayoutWithCollapsedCollapsingToolbarTextColor = customThemeSettingsItems.get(45).colorValue;
+        customTheme.tabLayoutWithCollapsedCollapsingToolbarTabIndicator = customThemeSettingsItems.get(46).colorValue;
+        customTheme.upvoted = customThemeSettingsItems.get(47).colorValue;
+        customTheme.downvoted = customThemeSettingsItems.get(48).colorValue;
+        customTheme.postTypeBackgroundColor = customThemeSettingsItems.get(49).colorValue;
+        customTheme.postTypeTextColor = customThemeSettingsItems.get(50).colorValue;
+        customTheme.spoilerBackgroundColor = customThemeSettingsItems.get(51).colorValue;
+        customTheme.spoilerTextColor = customThemeSettingsItems.get(52).colorValue;
+        customTheme.nsfwBackgroundColor = customThemeSettingsItems.get(53).colorValue;
+        customTheme.nsfwTextColor = customThemeSettingsItems.get(54).colorValue;
+        customTheme.flairBackgroundColor = customThemeSettingsItems.get(55).colorValue;
+        customTheme.flairTextColor = customThemeSettingsItems.get(56).colorValue;
+        customTheme.awardsBackgroundColor = customThemeSettingsItems.get(57).colorValue;
+        customTheme.awardsTextColor = customThemeSettingsItems.get(58).colorValue;
+        customTheme.archivedTint = customThemeSettingsItems.get(59).colorValue;
+        customTheme.lockedIconTint = customThemeSettingsItems.get(60).colorValue;
+        customTheme.crosspostIconTint = customThemeSettingsItems.get(61).colorValue;
+        customTheme.upvoteRatioIconTint = customThemeSettingsItems.get(62).colorValue;
+        customTheme.stickiedPostIconTint = customThemeSettingsItems.get(63).colorValue;
+        customTheme.noPreviewPostTypeIconTint = customThemeSettingsItems.get(64).colorValue;
+        customTheme.subscribed = customThemeSettingsItems.get(65).colorValue;
+        customTheme.unsubscribed = customThemeSettingsItems.get(66).colorValue;
+        customTheme.username = customThemeSettingsItems.get(67).colorValue;
+        customTheme.subreddit = customThemeSettingsItems.get(68).colorValue;
+        customTheme.authorFlairTextColor = customThemeSettingsItems.get(69).colorValue;
+        customTheme.submitter = customThemeSettingsItems.get(70).colorValue;
+        customTheme.moderator = customThemeSettingsItems.get(71).colorValue;
+        customTheme.currentUser = customThemeSettingsItems.get(72).colorValue;
+        customTheme.singleCommentThreadBackgroundColor = customThemeSettingsItems.get(73).colorValue;
+        customTheme.unreadMessageBackgroundColor = customThemeSettingsItems.get(74).colorValue;
+        customTheme.dividerColor = customThemeSettingsItems.get(75).colorValue;
+        customTheme.noPreviewPostTypeBackgroundColor = customThemeSettingsItems.get(76).colorValue;
+        customTheme.voteAndReplyUnavailableButtonColor = customThemeSettingsItems.get(77).colorValue;
+        customTheme.commentVerticalBarColor1 = customThemeSettingsItems.get(78).colorValue;
+        customTheme.commentVerticalBarColor2 = customThemeSettingsItems.get(79).colorValue;
+        customTheme.commentVerticalBarColor3 = customThemeSettingsItems.get(80).colorValue;
+        customTheme.commentVerticalBarColor4 = customThemeSettingsItems.get(81).colorValue;
+        customTheme.commentVerticalBarColor5 = customThemeSettingsItems.get(82).colorValue;
+        customTheme.commentVerticalBarColor6 = customThemeSettingsItems.get(83).colorValue;
+        customTheme.commentVerticalBarColor7 = customThemeSettingsItems.get(84).colorValue;
+        customTheme.navBarColor = customThemeSettingsItems.get(85).colorValue;
+        customTheme.isLightStatusBar = customThemeSettingsItems.get(86).isEnabled;
+        customTheme.isLightNavBar = customThemeSettingsItems.get(87).isEnabled;
+        customTheme.isChangeStatusBarIconColorAfterToolbarCollapsedInImmersiveInterface = customThemeSettingsItems.get(88).isEnabled;
 
         return customTheme;
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(@NonNull Parcel dest, int flags) {
+        dest.writeString(name);
+        dest.writeByte((byte) (isLightTheme ? 1 : 0));
+        dest.writeByte((byte) (isDarkTheme ? 1 : 0));
+        dest.writeByte((byte) (isAmoledTheme ? 1 : 0));
+        dest.writeInt(colorPrimary);
+        dest.writeInt(colorPrimaryDark);
+        dest.writeInt(colorAccent);
+        dest.writeInt(colorPrimaryLightTheme);
+        dest.writeInt(primaryTextColor);
+        dest.writeInt(secondaryTextColor);
+        dest.writeInt(postTitleColor);
+        dest.writeInt(postContentColor);
+        dest.writeInt(readPostTitleColor);
+        dest.writeInt(readPostContentColor);
+        dest.writeInt(commentColor);
+        dest.writeInt(buttonTextColor);
+        dest.writeInt(backgroundColor);
+        dest.writeInt(cardViewBackgroundColor);
+        dest.writeInt(readPostCardViewBackgroundColor);
+        dest.writeInt(filledCardViewBackgroundColor);
+        dest.writeInt(readPostFilledCardViewBackgroundColor);
+        dest.writeInt(commentBackgroundColor);
+        dest.writeInt(bottomAppBarBackgroundColor);
+        dest.writeInt(primaryIconColor);
+        dest.writeInt(bottomAppBarIconColor);
+        dest.writeInt(postIconAndInfoColor);
+        dest.writeInt(commentIconAndInfoColor);
+        dest.writeInt(toolbarPrimaryTextAndIconColor);
+        dest.writeInt(toolbarSecondaryTextColor);
+        dest.writeInt(circularProgressBarBackground);
+        dest.writeInt(mediaIndicatorIconColor);
+        dest.writeInt(mediaIndicatorBackgroundColor);
+        dest.writeInt(tabLayoutWithExpandedCollapsingToolbarTabBackground);
+        dest.writeInt(tabLayoutWithExpandedCollapsingToolbarTextColor);
+        dest.writeInt(tabLayoutWithExpandedCollapsingToolbarTabIndicator);
+        dest.writeInt(tabLayoutWithCollapsedCollapsingToolbarTabBackground);
+        dest.writeInt(tabLayoutWithCollapsedCollapsingToolbarTextColor);
+        dest.writeInt(tabLayoutWithCollapsedCollapsingToolbarTabIndicator);
+        dest.writeInt(navBarColor);
+        dest.writeInt(upvoted);
+        dest.writeInt(downvoted);
+        dest.writeInt(postTypeBackgroundColor);
+        dest.writeInt(postTypeTextColor);
+        dest.writeInt(spoilerBackgroundColor);
+        dest.writeInt(spoilerTextColor);
+        dest.writeInt(nsfwBackgroundColor);
+        dest.writeInt(nsfwTextColor);
+        dest.writeInt(flairBackgroundColor);
+        dest.writeInt(flairTextColor);
+        dest.writeInt(awardsBackgroundColor);
+        dest.writeInt(awardsTextColor);
+        dest.writeInt(archivedTint);
+        dest.writeInt(lockedIconTint);
+        dest.writeInt(crosspostIconTint);
+        dest.writeInt(upvoteRatioIconTint);
+        dest.writeInt(stickiedPostIconTint);
+        dest.writeInt(noPreviewPostTypeIconTint);
+        dest.writeInt(subscribed);
+        dest.writeInt(unsubscribed);
+        dest.writeInt(username);
+        dest.writeInt(subreddit);
+        dest.writeInt(authorFlairTextColor);
+        dest.writeInt(submitter);
+        dest.writeInt(moderator);
+        dest.writeInt(currentUser);
+        dest.writeInt(singleCommentThreadBackgroundColor);
+        dest.writeInt(unreadMessageBackgroundColor);
+        dest.writeInt(dividerColor);
+        dest.writeInt(noPreviewPostTypeBackgroundColor);
+        dest.writeInt(voteAndReplyUnavailableButtonColor);
+        dest.writeInt(commentVerticalBarColor1);
+        dest.writeInt(commentVerticalBarColor2);
+        dest.writeInt(commentVerticalBarColor3);
+        dest.writeInt(commentVerticalBarColor4);
+        dest.writeInt(commentVerticalBarColor5);
+        dest.writeInt(commentVerticalBarColor6);
+        dest.writeInt(commentVerticalBarColor7);
+        dest.writeInt(fabIconColor);
+        dest.writeInt(chipTextColor);
+        dest.writeInt(linkColor);
+        dest.writeInt(receivedMessageTextColor);
+        dest.writeInt(sentMessageTextColor);
+        dest.writeInt(receivedMessageBackgroundColor);
+        dest.writeInt(sentMessageBackgroundColor);
+        dest.writeInt(sendMessageIconColor);
+        dest.writeInt(fullyCollapsedCommentBackgroundColor);
+        dest.writeInt(awardedCommentBackgroundColor);
+        dest.writeByte((byte) (isLightStatusBar ? 1 : 0));
+        dest.writeByte((byte) (isLightNavBar ? 1 : 0));
+        dest.writeByte((byte) (isChangeStatusBarIconColorAfterToolbarCollapsedInImmersiveInterface ? 1 : 0));
     }
 
     private static class CustomThemeSerializer implements JsonSerializer<CustomTheme> {

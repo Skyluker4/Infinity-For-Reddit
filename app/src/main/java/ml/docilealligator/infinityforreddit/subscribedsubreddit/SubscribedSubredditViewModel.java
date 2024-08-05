@@ -3,7 +3,6 @@ package ml.docilealligator.infinityforreddit.subscribedsubreddit;
 import android.app.Application;
 
 import androidx.annotation.NonNull;
-import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Transformations;
@@ -14,17 +13,15 @@ import java.util.List;
 
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 
-public class SubscribedSubredditViewModel extends AndroidViewModel {
-    private SubscribedSubredditRepository mSubscribedSubredditRepository;
-    private LiveData<List<SubscribedSubredditData>> mAllSubscribedSubreddits;
-    private LiveData<List<SubscribedSubredditData>> mAllFavoriteSubscribedSubreddits;
-    private MutableLiveData<String> searchQueryLiveData;
+public class SubscribedSubredditViewModel extends ViewModel {
+    private final SubscribedSubredditRepository mSubscribedSubredditRepository;
+    private final LiveData<List<SubscribedSubredditData>> mAllSubscribedSubreddits;
+    private final LiveData<List<SubscribedSubredditData>> mAllFavoriteSubscribedSubreddits;
+    private final MutableLiveData<String> searchQueryLiveData;
 
-    public SubscribedSubredditViewModel(Application application, RedditDataRoomDatabase redditDataRoomDatabase, String accountName) {
-        super(application);
+    public SubscribedSubredditViewModel(RedditDataRoomDatabase redditDataRoomDatabase, String accountName) {
         mSubscribedSubredditRepository = new SubscribedSubredditRepository(redditDataRoomDatabase, accountName);
-        searchQueryLiveData = new MutableLiveData<>();
-        searchQueryLiveData.postValue("");
+        searchQueryLiveData = new MutableLiveData<>("");
 
         mAllSubscribedSubreddits = Transformations.switchMap(searchQueryLiveData, searchQuery -> mSubscribedSubredditRepository.getAllSubscribedSubredditsWithSearchQuery(searchQuery));
         mAllFavoriteSubscribedSubreddits = Transformations.switchMap(searchQueryLiveData, searchQuery -> mSubscribedSubredditRepository.getAllFavoriteSubscribedSubredditsWithSearchQuery(searchQuery));
@@ -47,12 +44,10 @@ public class SubscribedSubredditViewModel extends AndroidViewModel {
     }
 
     public static class Factory extends ViewModelProvider.NewInstanceFactory {
-        private Application mApplication;
-        private RedditDataRoomDatabase mRedditDataRoomDatabase;
-        private String mAccountName;
+        private final RedditDataRoomDatabase mRedditDataRoomDatabase;
+        private final String mAccountName;
 
-        public Factory(Application application, RedditDataRoomDatabase redditDataRoomDatabase, String accountName) {
-            this.mApplication = application;
+        public Factory(RedditDataRoomDatabase redditDataRoomDatabase, String accountName) {
             this.mRedditDataRoomDatabase = redditDataRoomDatabase;
             this.mAccountName = accountName;
         }
@@ -60,7 +55,7 @@ public class SubscribedSubredditViewModel extends AndroidViewModel {
         @NonNull
         @Override
         public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
-            return (T) new SubscribedSubredditViewModel(mApplication, mRedditDataRoomDatabase, mAccountName);
+            return (T) new SubscribedSubredditViewModel(mRedditDataRoomDatabase, mAccountName);
         }
     }
 }

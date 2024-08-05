@@ -13,6 +13,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase;
 
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.account.AccountDao;
+import ml.docilealligator.infinityforreddit.commentfilter.CommentFilter;
+import ml.docilealligator.infinityforreddit.commentfilter.CommentFilterDao;
+import ml.docilealligator.infinityforreddit.commentfilter.CommentFilterUsage;
+import ml.docilealligator.infinityforreddit.commentfilter.CommentFilterUsageDao;
 import ml.docilealligator.infinityforreddit.customtheme.CustomTheme;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeDao;
 import ml.docilealligator.infinityforreddit.multireddit.AnonymousMultiredditSubreddit;
@@ -38,7 +42,8 @@ import ml.docilealligator.infinityforreddit.user.UserData;
 
 @Database(entities = {Account.class, SubredditData.class, SubscribedSubredditData.class, UserData.class,
         SubscribedUserData.class, MultiReddit.class, CustomTheme.class, RecentSearchQuery.class,
-        ReadPost.class, PostFilter.class, PostFilterUsage.class, AnonymousMultiredditSubreddit.class}, version = 23)
+        ReadPost.class, PostFilter.class, PostFilterUsage.class, AnonymousMultiredditSubreddit.class,
+        CommentFilter.class, CommentFilterUsage.class}, version = 26)
 public abstract class RedditDataRoomDatabase extends RoomDatabase {
 
     public static RedditDataRoomDatabase create(final Context context) {
@@ -49,7 +54,8 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
                         MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13,
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
                         MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
-                        MIGRATION_21_22, MIGRATION_22_23)
+                        MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
+                        MIGRATION_25_26)
                 .build();
     }
 
@@ -76,6 +82,10 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
     public abstract PostFilterUsageDao postFilterUsageDao();
 
     public abstract AnonymousMultiredditSubredditDao anonymousMultiredditSubredditDao();
+
+    public abstract CommentFilterDao commentFilterDao();
+
+    public abstract CommentFilterUsageDao commentFilterUsageDao();
 
     private static final Migration MIGRATION_1_2 = new Migration(1, 2) {
         @Override
@@ -381,6 +391,31 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
             } finally {
                 database.endTransaction();
             }
+        }
+    };
+
+    private static final Migration MIGRATION_23_24 = new Migration(23, 24) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE custom_themes ADD COLUMN filled_card_view_background_color INTEGER DEFAULT " + Color.parseColor("#E6F4FF") + " NOT NULL");
+            database.execSQL("ALTER TABLE custom_themes ADD COLUMN read_post_filled_card_view_background_color INTEGER DEFAULT " + Color.parseColor("#F5F5F5") + " NOT NULL");
+        }
+    };
+
+    private static final Migration MIGRATION_24_25 = new Migration(24, 25) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("CREATE TABLE comment_filter " +
+                    "(name TEXT NOT NULL PRIMARY KEY, max_vote INTEGER NOT NULL, min_vote INTEGER NOT NULL, exclude_strings TEXT, exclude_users TEXT)");
+            database.execSQL("CREATE TABLE comment_filter_usage (name TEXT NOT NULL, usage INTEGER NOT NULL, " +
+                    "name_of_usage TEXT NOT NULL, PRIMARY KEY(name, usage, name_of_usage), FOREIGN KEY(name) REFERENCES comment_filter(name) ON DELETE CASCADE)");
+        }
+    };
+
+    private static final Migration MIGRATION_25_26 = new Migration(25, 26) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            database.execSQL("ALTER TABLE comment_filter ADD COLUMN display_mode INTEGER DEFAULT 0 NOT NULL");
         }
     };
 }

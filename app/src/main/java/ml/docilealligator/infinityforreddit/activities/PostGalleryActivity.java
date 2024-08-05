@@ -1,6 +1,9 @@
 package ml.docilealligator.infinityforreddit.activities;
 
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.content.ActivityNotFoundException;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -12,34 +15,26 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.PersistableBundle;
 import android.provider.MediaStore;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.request.RequestOptions;
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.divider.MaterialDivider;
-import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.gson.Gson;
-import com.libRG.CustomTextView;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -56,8 +51,6 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
 import ml.docilealligator.infinityforreddit.Flair;
 import ml.docilealligator.infinityforreddit.Infinity;
@@ -65,20 +58,21 @@ import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 import ml.docilealligator.infinityforreddit.RedditGalleryPayload;
 import ml.docilealligator.infinityforreddit.account.Account;
+import ml.docilealligator.infinityforreddit.adapters.MarkdownBottomBarRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.adapters.RedditGallerySubmissionRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.asynctasks.LoadSubredditIcon;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.AccountChooserBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.FlairBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.SelectOrCaptureImageBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
+import ml.docilealligator.infinityforreddit.customviews.LinearLayoutManagerBugFixed;
+import ml.docilealligator.infinityforreddit.databinding.ActivityPostGalleryBinding;
 import ml.docilealligator.infinityforreddit.events.SubmitGalleryPostEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.services.SubmitPostService;
 import ml.docilealligator.infinityforreddit.utils.JSONUtils;
-import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.UploadImageUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
-import pl.droidsonroids.gif.GifImageView;
 import retrofit2.Retrofit;
 
 public class PostGalleryActivity extends BaseActivity implements FlairBottomSheetFragment.FlairSelectionCallback,
@@ -102,44 +96,6 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     private static final int PICK_IMAGE_REQUEST_CODE = 1;
     private static final int CAPTURE_IMAGE_REQUEST_CODE = 2;
 
-    @BindView(R.id.coordinator_layout_post_gallery_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_post_gallery_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.toolbar_post_gallery_activity)
-    Toolbar toolbar;
-    @BindView(R.id.account_linear_layout_post_gallery_activity)
-    LinearLayout accountLinearLayout;
-    @BindView(R.id.account_icon_gif_image_view_post_gallery_activity)
-    GifImageView accountIconImageView;
-    @BindView(R.id.account_name_text_view_post_gallery_activity)
-    TextView accountNameTextView;
-    @BindView(R.id.subreddit_icon_gif_image_view_post_gallery_activity)
-    GifImageView iconGifImageView;
-    @BindView(R.id.subreddit_name_text_view_post_gallery_activity)
-    TextView subredditNameTextView;
-    @BindView(R.id.rules_button_post_gallery_activity)
-    MaterialButton rulesButton;
-    @BindView(R.id.divider_1_post_gallery_activity)
-    MaterialDivider divider1;
-    @BindView(R.id.flair_custom_text_view_post_gallery_activity)
-    CustomTextView flairTextView;
-    @BindView(R.id.spoiler_custom_text_view_post_gallery_activity)
-    CustomTextView spoilerTextView;
-    @BindView(R.id.nsfw_custom_text_view_post_gallery_activity)
-    CustomTextView nsfwTextView;
-    @BindView(R.id.receive_post_reply_notifications_linear_layout_post_gallery_activity)
-    LinearLayout receivePostReplyNotificationsLinearLayout;
-    @BindView(R.id.receive_post_reply_notifications_text_view_post_gallery_activity)
-    TextView receivePostReplyNotificationsTextView;
-    @BindView(R.id.receive_post_reply_notifications_switch_material_post_gallery_activity)
-    MaterialSwitch receivePostReplyNotificationsSwitchMaterial;
-    @BindView(R.id.divider_2_post_gallery_activity)
-    MaterialDivider divider2;
-    @BindView(R.id.post_title_edit_text_post_gallery_activity)
-    EditText titleEditText;
-    @BindView(R.id.images_recycler_view_post_gallery_activity)
-    RecyclerView imagesRecyclerView;
     @Inject
     @Named("no_oauth")
     Retrofit mRetrofit;
@@ -163,8 +119,6 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     Executor mExecutor;
     private Account selectedAccount;
     private ArrayList<RedditGallerySubmissionRecyclerViewAdapter.RedditGalleryImageInfo> redditGalleryImageInfoList;
-    private String mAccessToken;
-    private String mAccountName;
     private String iconUrl;
     private String subredditName;
     private boolean subredditSelected = false;
@@ -189,6 +143,7 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     private RedditGallerySubmissionRecyclerViewAdapter adapter;
     private Uri imageUri;
     private boolean isUploading;
+    private ActivityPostGalleryBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -197,43 +152,39 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
         setImmersiveModeNotApplicable();
 
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_post_gallery);
-
-        ButterKnife.bind(this);
+        binding = ActivityPostGalleryBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
         applyCustomTheme();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(appBarLayout);
+            addOnOffsetChangedListener(binding.appbarLayoutPostGalleryActivity);
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarPostGalleryActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         mGlide = Glide.with(this);
 
-        mPostingSnackbar = Snackbar.make(coordinatorLayout, R.string.posting, Snackbar.LENGTH_INDEFINITE);
+        mPostingSnackbar = Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.posting, Snackbar.LENGTH_INDEFINITE);
 
         resources = getResources();
-
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
 
         adapter = new RedditGallerySubmissionRecyclerViewAdapter(this, mCustomThemeWrapper, () -> {
             if (!isUploading) {
                 SelectOrCaptureImageBottomSheetFragment fragment = new SelectOrCaptureImageBottomSheetFragment();
                 fragment.show(getSupportFragmentManager(), fragment.getTag());
             } else {
-                Snackbar.make(coordinatorLayout, R.string.please_wait_image_is_uploading, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.please_wait_image_is_uploading, Snackbar.LENGTH_SHORT).show();
             }
         });
-        imagesRecyclerView.setAdapter(adapter);
+        binding.imagesRecyclerViewPostGalleryActivity.setAdapter(adapter);
         Resources resources = getResources();
         int nColumns = resources.getBoolean(R.bool.isTablet) || resources.getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE ? 3 : 2;
-        ((GridLayoutManager) imagesRecyclerView.getLayoutManager()).setSpanCount(nColumns);
-        imagesRecyclerView.addItemDecoration(new RecyclerView.ItemDecoration() {
+        ((GridLayoutManager) binding.imagesRecyclerViewPostGalleryActivity.getLayoutManager()).setSpanCount(nColumns);
+        binding.imagesRecyclerViewPostGalleryActivity.addItemDecoration(new RecyclerView.ItemDecoration() {
             @Override
             public void getItemOffsets(@NonNull Rect outRect, @NonNull View view, @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
                 int offset = (int) (Utils.convertDpToPixel(16, PostGalleryActivity.this));
@@ -260,9 +211,9 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                         .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
                         .error(mGlide.load(R.drawable.subreddit_default_icon)
                                 .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0))))
-                        .into(accountIconImageView);
+                        .into(binding.accountIconGifImageViewPostGalleryActivity);
 
-                accountNameTextView.setText(selectedAccount.getAccountName());
+                binding.accountNameTextViewPostGalleryActivity.setText(selectedAccount.getAccountName());
             } else {
                 loadCurrentAccount();
             }
@@ -276,9 +227,9 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
             adapter.setRedditGalleryImageInfoList(redditGalleryImageInfoList);
 
             if (subredditName != null) {
-                subredditNameTextView.setTextColor(primaryTextColor);
-                subredditNameTextView.setText(subredditName);
-                flairTextView.setVisibility(View.VISIBLE);
+                binding.subredditNameTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+                binding.subredditNameTextViewPostGalleryActivity.setText(subredditName);
+                binding.flairCustomTextViewPostGalleryActivity.setVisibility(View.VISIBLE);
                 if (!loadSubredditIconSuccessful) {
                     loadSubredditIcon();
                 }
@@ -290,20 +241,20 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
             }
 
             if (flair != null) {
-                flairTextView.setText(flair.getText());
-                flairTextView.setBackgroundColor(flairBackgroundColor);
-                flairTextView.setBorderColor(flairBackgroundColor);
-                flairTextView.setTextColor(flairTextColor);
+                binding.flairCustomTextViewPostGalleryActivity.setText(flair.getText());
+                binding.flairCustomTextViewPostGalleryActivity.setBackgroundColor(flairBackgroundColor);
+                binding.flairCustomTextViewPostGalleryActivity.setBorderColor(flairBackgroundColor);
+                binding.flairCustomTextViewPostGalleryActivity.setTextColor(flairTextColor);
             }
             if (isSpoiler) {
-                spoilerTextView.setBackgroundColor(spoilerBackgroundColor);
-                spoilerTextView.setBorderColor(spoilerBackgroundColor);
-                spoilerTextView.setTextColor(spoilerTextColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setBackgroundColor(spoilerBackgroundColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setBorderColor(spoilerBackgroundColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setTextColor(spoilerTextColor);
             }
             if (isNSFW) {
-                nsfwTextView.setBackgroundColor(nsfwBackgroundColor);
-                nsfwTextView.setBorderColor(nsfwBackgroundColor);
-                nsfwTextView.setTextColor(nsfwTextColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setBackgroundColor(nsfwBackgroundColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setBorderColor(nsfwBackgroundColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setTextColor(nsfwTextColor);
             }
         } else {
             isPosting = false;
@@ -314,33 +265,31 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                 loadSubredditIconSuccessful = false;
                 subredditName = getIntent().getStringExtra(EXTRA_SUBREDDIT_NAME);
                 subredditSelected = true;
-                subredditNameTextView.setTextColor(primaryTextColor);
-                subredditNameTextView.setText(subredditName);
-                flairTextView.setVisibility(View.VISIBLE);
+                binding.subredditNameTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+                binding.subredditNameTextViewPostGalleryActivity.setText(subredditName);
+                binding.flairCustomTextViewPostGalleryActivity.setVisibility(View.VISIBLE);
                 loadSubredditIcon();
             } else {
                 mGlide.load(R.drawable.subreddit_default_icon)
                         .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
-                        .into(iconGifImageView);
+                        .into(binding.subredditIconGifImageViewPostGalleryActivity);
             }
         }
 
-        accountLinearLayout.setOnClickListener(view -> {
+        binding.accountLinearLayoutPostGalleryActivity.setOnClickListener(view -> {
             AccountChooserBottomSheetFragment fragment = new AccountChooserBottomSheetFragment();
             fragment.show(getSupportFragmentManager(), fragment.getTag());
         });
 
-        iconGifImageView.setOnClickListener(view -> subredditNameTextView.performClick());
-
-        subredditNameTextView.setOnClickListener(view -> {
+        binding.subredditRelativeLayoutPostGalleryActivity.setOnClickListener(view -> {
             Intent intent = new Intent(this, SubredditSelectionActivity.class);
             intent.putExtra(SubredditSelectionActivity.EXTRA_SPECIFIED_ACCOUNT, selectedAccount);
             startActivityForResult(intent, SUBREDDIT_SELECTION_REQUEST_CODE);
         });
 
-        rulesButton.setOnClickListener(view -> {
+        binding.rulesButtonPostGalleryActivity.setOnClickListener(view -> {
             if (subredditName == null) {
-                Snackbar.make(coordinatorLayout, R.string.select_a_subreddit, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.select_a_subreddit, Snackbar.LENGTH_SHORT).show();
             } else {
                 Intent intent = new Intent(this, RulesActivity.class);
                 if (subredditIsUser) {
@@ -352,51 +301,69 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
             }
         });
 
-        flairTextView.setOnClickListener(view -> {
+        binding.flairCustomTextViewPostGalleryActivity.setOnClickListener(view -> {
             if (flair == null) {
                 flairSelectionBottomSheetFragment = new FlairBottomSheetFragment();
                 Bundle bundle = new Bundle();
-                bundle.putString(FlairBottomSheetFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
                 bundle.putString(FlairBottomSheetFragment.EXTRA_SUBREDDIT_NAME, subredditName);
                 flairSelectionBottomSheetFragment.setArguments(bundle);
                 flairSelectionBottomSheetFragment.show(getSupportFragmentManager(), flairSelectionBottomSheetFragment.getTag());
             } else {
-                flairTextView.setBackgroundColor(resources.getColor(android.R.color.transparent));
-                flairTextView.setTextColor(primaryTextColor);
-                flairTextView.setText(getString(R.string.flair));
+                binding.flairCustomTextViewPostGalleryActivity.setBackgroundColor(resources.getColor(android.R.color.transparent));
+                binding.flairCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+                binding.flairCustomTextViewPostGalleryActivity.setText(getString(R.string.flair));
                 flair = null;
             }
         });
 
-        spoilerTextView.setOnClickListener(view -> {
+        binding.spoilerCustomTextViewPostGalleryActivity.setOnClickListener(view -> {
             if (!isSpoiler) {
-                spoilerTextView.setBackgroundColor(spoilerBackgroundColor);
-                spoilerTextView.setBorderColor(spoilerBackgroundColor);
-                spoilerTextView.setTextColor(spoilerTextColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setBackgroundColor(spoilerBackgroundColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setBorderColor(spoilerBackgroundColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setTextColor(spoilerTextColor);
                 isSpoiler = true;
             } else {
-                spoilerTextView.setBackgroundColor(resources.getColor(android.R.color.transparent));
-                spoilerTextView.setTextColor(primaryTextColor);
+                binding.spoilerCustomTextViewPostGalleryActivity.setBackgroundColor(resources.getColor(android.R.color.transparent));
+                binding.spoilerCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
                 isSpoiler = false;
             }
         });
 
-        nsfwTextView.setOnClickListener(view -> {
+        binding.nsfwCustomTextViewPostGalleryActivity.setOnClickListener(view -> {
             if (!isNSFW) {
-                nsfwTextView.setBackgroundColor(nsfwBackgroundColor);
-                nsfwTextView.setBorderColor(nsfwBackgroundColor);
-                nsfwTextView.setTextColor(nsfwTextColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setBackgroundColor(nsfwBackgroundColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setBorderColor(nsfwBackgroundColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setTextColor(nsfwTextColor);
                 isNSFW = true;
             } else {
-                nsfwTextView.setBackgroundColor(resources.getColor(android.R.color.transparent));
-                nsfwTextView.setTextColor(primaryTextColor);
+                binding.nsfwCustomTextViewPostGalleryActivity.setBackgroundColor(resources.getColor(android.R.color.transparent));
+                binding.nsfwCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
                 isNSFW = false;
             }
         });
 
-        receivePostReplyNotificationsLinearLayout.setOnClickListener(view -> {
-            receivePostReplyNotificationsSwitchMaterial.performClick();
+        binding.receivePostReplyNotificationsLinearLayoutPostGalleryActivity.setOnClickListener(view -> {
+            binding.receivePostReplyNotificationsSwitchMaterialPostGalleryActivity.performClick();
         });
+
+        MarkdownBottomBarRecyclerViewAdapter adapter = new MarkdownBottomBarRecyclerViewAdapter(
+                mCustomThemeWrapper,
+                new MarkdownBottomBarRecyclerViewAdapter.ItemClickListener() {
+                    @Override
+                    public void onClick(int item) {
+                        MarkdownBottomBarRecyclerViewAdapter.bindEditTextWithItemClickListener(
+                                PostGalleryActivity.this, binding.postContentEditTextPostGalleryActivity, item);
+                    }
+
+                    @Override
+                    public void onUploadImage() {
+
+                    }
+                });
+
+        binding.markdownBottomBarRecyclerViewPostGalleryActivity.setLayoutManager(new LinearLayoutManagerBugFixed(this,
+                LinearLayoutManager.HORIZONTAL, false));
+        binding.markdownBottomBarRecyclerViewPostGalleryActivity.setAdapter(adapter);
     }
 
     private void loadCurrentAccount() {
@@ -410,57 +377,67 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                             .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
                             .error(mGlide.load(R.drawable.subreddit_default_icon)
                                     .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0))))
-                            .into(accountIconImageView);
+                            .into(binding.accountIconGifImageViewPostGalleryActivity);
 
-                    accountNameTextView.setText(account.getAccountName());
+                    binding.accountNameTextViewPostGalleryActivity.setText(account.getAccountName());
                 }
             });
         });
     }
 
     @Override
-    protected SharedPreferences getDefaultSharedPreferences() {
+    public SharedPreferences getDefaultSharedPreferences() {
         return mSharedPreferences;
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, null, toolbar);
+        binding.coordinatorLayoutPostGalleryActivity.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutPostGalleryActivity, null, binding.toolbarPostGalleryActivity);
         primaryTextColor = mCustomThemeWrapper.getPrimaryTextColor();
-        accountNameTextView.setTextColor(primaryTextColor);
+        binding.accountNameTextViewPostGalleryActivity.setTextColor(primaryTextColor);
         int secondaryTextColor = mCustomThemeWrapper.getSecondaryTextColor();
-        subredditNameTextView.setTextColor(secondaryTextColor);
-        rulesButton.setTextColor(mCustomThemeWrapper.getButtonTextColor());
-        rulesButton.setBackgroundColor(mCustomThemeWrapper.getColorPrimaryLightTheme());
-        receivePostReplyNotificationsTextView.setTextColor(primaryTextColor);
+        binding.subredditNameTextViewPostGalleryActivity.setTextColor(secondaryTextColor);
+        binding.rulesButtonPostGalleryActivity.setTextColor(mCustomThemeWrapper.getButtonTextColor());
+        binding.rulesButtonPostGalleryActivity.setBackgroundColor(mCustomThemeWrapper.getColorPrimaryLightTheme());
+        binding.receivePostReplyNotificationsTextViewPostGalleryActivity.setTextColor(primaryTextColor);
         int dividerColor = mCustomThemeWrapper.getDividerColor();
-        divider1.setDividerColor(dividerColor);
-        divider2.setDividerColor(dividerColor);
+        binding.divider1PostGalleryActivity.setDividerColor(dividerColor);
+        binding.divider2PostGalleryActivity.setDividerColor(dividerColor);
         flairBackgroundColor = mCustomThemeWrapper.getFlairBackgroundColor();
         flairTextColor = mCustomThemeWrapper.getFlairTextColor();
         spoilerBackgroundColor = mCustomThemeWrapper.getSpoilerBackgroundColor();
         spoilerTextColor = mCustomThemeWrapper.getSpoilerTextColor();
         nsfwBackgroundColor = mCustomThemeWrapper.getNsfwBackgroundColor();
         nsfwTextColor = mCustomThemeWrapper.getNsfwTextColor();
-        flairTextView.setTextColor(primaryTextColor);
-        spoilerTextView.setTextColor(primaryTextColor);
-        nsfwTextView.setTextColor(primaryTextColor);
-        titleEditText.setTextColor(primaryTextColor);
-        titleEditText.setHintTextColor(secondaryTextColor);
+        binding.flairCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+        binding.spoilerCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+        binding.nsfwCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+        binding.postTitleEditTextPostGalleryActivity.setTextColor(primaryTextColor);
+        binding.postTitleEditTextPostGalleryActivity.setHintTextColor(secondaryTextColor);
+        binding.postContentEditTextPostGalleryActivity.setTextColor(primaryTextColor);
+        binding.postContentEditTextPostGalleryActivity.setHintTextColor(secondaryTextColor);
         if (typeface != null) {
-            subredditNameTextView.setTypeface(typeface);
-            rulesButton.setTypeface(typeface);
-            receivePostReplyNotificationsTextView.setTypeface(typeface);
-            flairTextView.setTypeface(typeface);
-            spoilerTextView.setTypeface(typeface);
-            nsfwTextView.setTypeface(typeface);
-            titleEditText.setTypeface(typeface);
+            binding.subredditNameTextViewPostGalleryActivity.setTypeface(typeface);
+            binding.rulesButtonPostGalleryActivity.setTypeface(typeface);
+            binding.receivePostReplyNotificationsTextViewPostGalleryActivity.setTypeface(typeface);
+            binding.flairCustomTextViewPostGalleryActivity.setTypeface(typeface);
+            binding.spoilerCustomTextViewPostGalleryActivity.setTypeface(typeface);
+            binding.nsfwCustomTextViewPostGalleryActivity.setTypeface(typeface);
+            binding.postTitleEditTextPostGalleryActivity.setTypeface(typeface);
+        }
+        if (contentTypeface != null) {
+            binding.postContentEditTextPostGalleryActivity.setTypeface(contentTypeface);
         }
     }
 
@@ -474,14 +451,14 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     public void captureImage() {
         Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         try {
-            imageUri = FileProvider.getUriForFile(this, "ml.docilealligator.infinityforreddit.provider",
+            imageUri = FileProvider.getUriForFile(this, getPackageName() + ".provider",
                     File.createTempFile("temp_img", ".jpg", getExternalFilesDir(Environment.DIRECTORY_PICTURES)));
             pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
             startActivityForResult(pictureIntent, CAPTURE_IMAGE_REQUEST_CODE);
         } catch (IOException ex) {
-            Snackbar.make(coordinatorLayout, R.string.error_creating_temp_file, Snackbar.LENGTH_SHORT).show();
+            Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.error_creating_temp_file, Snackbar.LENGTH_SHORT).show();
         } catch (ActivityNotFoundException e) {
-            Snackbar.make(coordinatorLayout, R.string.no_camera_available, Snackbar.LENGTH_SHORT).show();
+            Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.no_camera_available, Snackbar.LENGTH_SHORT).show();
         }
     }
 
@@ -491,7 +468,7 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
         mExecutor.execute(() -> {
             try {
                 Bitmap resource = Glide.with(PostGalleryActivity.this).asBitmap().load(imageUri).submit().get();
-                String response = UploadImageUtils.uploadImage(mOauthRetrofit, mUploadMediaRetrofit, mAccessToken, resource, true);
+                String response = UploadImageUtils.uploadImage(mOauthRetrofit, mUploadMediaRetrofit, accessToken, resource, true, false);
                 String mediaId = new JSONObject(response).getJSONObject(JSONUtils.ASSET_KEY).getString(JSONUtils.ASSET_ID_KEY);
                 handler.post(() -> {
                     adapter.setImageAsUploaded(mediaId);
@@ -501,14 +478,14 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                 e.printStackTrace();
                 handler.post(() -> {
                     adapter.removeFailedToUploadImage();
-                    Snackbar.make(coordinatorLayout, R.string.get_image_bitmap_failed, Snackbar.LENGTH_LONG).show();
+                    Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.get_image_bitmap_failed, Snackbar.LENGTH_LONG).show();
                     isUploading = false;
                 });
             } catch (XmlPullParserException | JSONException | IOException e) {
                 e.printStackTrace();
                 handler.post(() -> {
                     adapter.removeFailedToUploadImage();
-                    Snackbar.make(coordinatorLayout, R.string.upload_image_failed, Snackbar.LENGTH_LONG).show();
+                    Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.upload_image_failed, Snackbar.LENGTH_LONG).show();
                     isUploading = false;
                 });
             }
@@ -516,21 +493,22 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     }
 
     private void displaySubredditIcon() {
-        if (iconUrl != null && !iconUrl.equals("")) {
+        if (iconUrl != null && !iconUrl.isEmpty()) {
             mGlide.load(iconUrl)
                     .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
                     .error(mGlide.load(R.drawable.subreddit_default_icon)
                             .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0))))
-                    .into(iconGifImageView);
+                    .into(binding.subredditIconGifImageViewPostGalleryActivity);
         } else {
             mGlide.load(R.drawable.subreddit_default_icon)
                     .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
-                    .into(iconGifImageView);
+                    .into(binding.subredditIconGifImageViewPostGalleryActivity);
         }
     }
 
     private void loadSubredditIcon() {
-        LoadSubredditIcon.loadSubredditIcon(mExecutor, new Handler(), mRedditDataRoomDatabase, subredditName, mAccessToken, mOauthRetrofit, mRetrofit, iconImageUrl -> {
+        LoadSubredditIcon.loadSubredditIcon(mExecutor, new Handler(), mRedditDataRoomDatabase, subredditName,
+                accessToken, accountName, mOauthRetrofit, mRetrofit, iconImageUrl -> {
             iconUrl = iconImageUrl;
             displaySubredditIcon();
             loadSubredditIconSuccessful = true;
@@ -567,7 +545,10 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                 promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
                 return true;
             } else {
-                if (!titleEditText.getText().toString().equals("") || redditGalleryImageInfoList != null) {
+                redditGalleryImageInfoList = adapter.getRedditGalleryImageInfoList();
+                if (!binding.postTitleEditTextPostGalleryActivity.getText().toString().isEmpty()
+                        || !binding.postContentEditTextPostGalleryActivity.getText().toString().isEmpty()
+                        || redditGalleryImageInfoList != null) {
                     promptAlertDialog(R.string.discard, R.string.discard_detail);
                     return true;
                 }
@@ -576,22 +557,23 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
             return true;
         } else if (itemId == R.id.action_send_post_gallery_activity) {
             if (!subredditSelected) {
-                Snackbar.make(coordinatorLayout, R.string.select_a_subreddit, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.select_a_subreddit, Snackbar.LENGTH_SHORT).show();
                 return true;
             }
 
-            if (titleEditText.getText() == null || titleEditText.getText().toString().equals("")) {
-                Snackbar.make(coordinatorLayout, R.string.title_required, Snackbar.LENGTH_SHORT).show();
+            if (binding.postTitleEditTextPostGalleryActivity.getText() == null || binding.postTitleEditTextPostGalleryActivity.getText().toString().isEmpty()) {
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.title_required, Snackbar.LENGTH_SHORT).show();
                 return true;
             }
 
+            redditGalleryImageInfoList = adapter.getRedditGalleryImageInfoList();
             if (redditGalleryImageInfoList == null || redditGalleryImageInfoList.isEmpty()) {
-                Snackbar.make(coordinatorLayout, R.string.select_an_image, Snackbar.LENGTH_SHORT).show();
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.select_an_image, Snackbar.LENGTH_SHORT).show();
                 return true;
             }
 
             if (redditGalleryImageInfoList.get(redditGalleryImageInfoList.size() - 1).payload == null) {
-                Snackbar.make(coordinatorLayout, R.string.please_wait_image_is_uploading, Snackbar.LENGTH_LONG).show();
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.please_wait_image_is_uploading, Snackbar.LENGTH_LONG).show();
                 return true;
             }
 
@@ -604,12 +586,12 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
 
             String subredditName;
             if (subredditIsUser) {
-                subredditName = "u_" + subredditNameTextView.getText().toString();
+                subredditName = "u_" + binding.subredditNameTextViewPostGalleryActivity.getText().toString();
             } else {
-                subredditName = subredditNameTextView.getText().toString();
+                subredditName = binding.subredditNameTextViewPostGalleryActivity.getText().toString();
             }
 
-            Intent intent = new Intent(this, SubmitPostService.class);
+            /*Intent intent = new Intent(this, SubmitPostService.class);
             intent.putExtra(SubmitPostService.EXTRA_ACCOUNT, selectedAccount);
             intent.putExtra(SubmitPostService.EXTRA_SUBREDDIT_NAME, subredditName);
             intent.putExtra(SubmitPostService.EXTRA_POST_TYPE, SubmitPostService.EXTRA_POST_TYPE_GALLERY);
@@ -618,11 +600,31 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                 items.add(i.payload);
             }
             RedditGalleryPayload payload = new RedditGalleryPayload(subredditName, subredditIsUser ? "profile" : "subreddit",
-                    titleEditText.getText().toString(), isSpoiler, isNSFW, receivePostReplyNotificationsSwitchMaterial.isChecked(),
-                    flair, items);
+                    binding.postTitleEditTextPostGalleryActivity.getText().toString(),
+                    binding.postContentEditTextPostGalleryActivity.getText().toString(), isSpoiler, isNSFW,
+                    binding.receivePostReplyNotificationsSwitchMaterialPostGalleryActivity.isChecked(), flair, items);
             intent.putExtra(SubmitPostService.EXTRA_REDDIT_GALLERY_PAYLOAD, new Gson().toJson(payload));
 
-            ContextCompat.startForegroundService(this, intent);
+            ContextCompat.startForegroundService(this, intent);*/
+
+            PersistableBundle extras = new PersistableBundle();
+            extras.putString(SubmitPostService.EXTRA_ACCOUNT, selectedAccount.getJSONModel());
+            extras.putString(SubmitPostService.EXTRA_SUBREDDIT_NAME, subredditName);
+            extras.putInt(SubmitPostService.EXTRA_POST_TYPE, SubmitPostService.EXTRA_POST_TYPE_GALLERY);
+            ArrayList<RedditGalleryPayload.Item> items = new ArrayList<>();
+            for (RedditGallerySubmissionRecyclerViewAdapter.RedditGalleryImageInfo i : redditGalleryImageInfoList) {
+                items.add(i.payload);
+            }
+            RedditGalleryPayload payload = new RedditGalleryPayload(subredditName, subredditIsUser ? "profile" : "subreddit",
+                    binding.postTitleEditTextPostGalleryActivity.getText().toString(),
+                    binding.postContentEditTextPostGalleryActivity.getText().toString(), isSpoiler, isNSFW,
+                    binding.receivePostReplyNotificationsSwitchMaterialPostGalleryActivity.isChecked(), flair, items);
+
+            String payloadJSON = new Gson().toJson(payload);
+            extras.putString(SubmitPostService.EXTRA_REDDIT_GALLERY_PAYLOAD, payloadJSON);
+
+            JobInfo jobInfo = SubmitPostService.constructJobInfo(this, payloadJSON.length() * 2L, extras);
+            ((JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE)).schedule(jobInfo);
 
             return true;
         }
@@ -635,7 +637,10 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
         if (isPosting) {
             promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
         } else {
-            if (!titleEditText.getText().toString().equals("") || redditGalleryImageInfoList != null) {
+            redditGalleryImageInfoList = adapter.getRedditGalleryImageInfoList();
+            if (!binding.postTitleEditTextPostGalleryActivity.getText().toString().isEmpty()
+                    || !binding.postContentEditTextPostGalleryActivity.getText().toString().isEmpty()
+                    || redditGalleryImageInfoList != null) {
                 promptAlertDialog(R.string.discard, R.string.discard_detail);
             } else {
                 finish();
@@ -670,20 +675,20 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                 subredditSelected = true;
                 subredditIsUser = data.getExtras().getBoolean(SubredditSelectionActivity.EXTRA_RETURN_SUBREDDIT_IS_USER);
 
-                subredditNameTextView.setTextColor(primaryTextColor);
-                subredditNameTextView.setText(subredditName);
+                binding.subredditNameTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+                binding.subredditNameTextViewPostGalleryActivity.setText(subredditName);
                 displaySubredditIcon();
 
-                flairTextView.setVisibility(View.VISIBLE);
-                flairTextView.setBackgroundColor(resources.getColor(android.R.color.transparent));
-                flairTextView.setTextColor(primaryTextColor);
-                flairTextView.setText(getString(R.string.flair));
+                binding.flairCustomTextViewPostGalleryActivity.setVisibility(View.VISIBLE);
+                binding.flairCustomTextViewPostGalleryActivity.setBackgroundColor(resources.getColor(android.R.color.transparent));
+                binding.flairCustomTextViewPostGalleryActivity.setTextColor(primaryTextColor);
+                binding.flairCustomTextViewPostGalleryActivity.setText(getString(R.string.flair));
                 flair = null;
             }
         } else if (requestCode == PICK_IMAGE_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 if (data == null) {
-                    Snackbar.make(coordinatorLayout, R.string.error_getting_image, Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.error_getting_image, Snackbar.LENGTH_SHORT).show();
                     return;
                 }
 
@@ -708,10 +713,10 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     @Override
     public void flairSelected(Flair flair) {
         this.flair = flair;
-        flairTextView.setText(flair.getText());
-        flairTextView.setBackgroundColor(flairBackgroundColor);
-        flairTextView.setBorderColor(flairBackgroundColor);
-        flairTextView.setTextColor(flairTextColor);
+        binding.flairCustomTextViewPostGalleryActivity.setText(flair.getText());
+        binding.flairCustomTextViewPostGalleryActivity.setBackgroundColor(flairBackgroundColor);
+        binding.flairCustomTextViewPostGalleryActivity.setBorderColor(flairBackgroundColor);
+        binding.flairCustomTextViewPostGalleryActivity.setTextColor(flairTextColor);
     }
 
     @Override
@@ -723,9 +728,9 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                     .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
                     .error(mGlide.load(R.drawable.subreddit_default_icon)
                             .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0))))
-                    .into(accountIconImageView);
+                    .into(binding.accountIconGifImageViewPostGalleryActivity);
 
-            accountNameTextView.setText(selectedAccount.getAccountName());
+            binding.accountNameTextViewPostGalleryActivity.setText(selectedAccount.getAccountName());
         }
     }
 
@@ -752,10 +757,10 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
         } else {
             mMemu.findItem(R.id.action_send_post_gallery_activity).setEnabled(true);
             mMemu.findItem(R.id.action_send_post_gallery_activity).getIcon().setAlpha(255);
-            if (submitGalleryPostEvent.errorMessage == null || submitGalleryPostEvent.errorMessage.equals("")) {
-                Snackbar.make(coordinatorLayout, R.string.post_failed, Snackbar.LENGTH_SHORT).show();
+            if (submitGalleryPostEvent.errorMessage == null || submitGalleryPostEvent.errorMessage.isEmpty()) {
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, R.string.post_failed, Snackbar.LENGTH_SHORT).show();
             } else {
-                Snackbar.make(coordinatorLayout, submitGalleryPostEvent.errorMessage.substring(0, 1).toUpperCase()
+                Snackbar.make(binding.coordinatorLayoutPostGalleryActivity, submitGalleryPostEvent.errorMessage.substring(0, 1).toUpperCase()
                         + submitGalleryPostEvent.errorMessage.substring(1), Snackbar.LENGTH_SHORT).show();
             }
         }

@@ -48,11 +48,6 @@
 
     <ml.docilealligator.infinityforreddit.customviews.CustomFontSwitchPreference
         app:defaultValue="false"
-        app:key="hide_comment_awards"
-        android:title="@string/settings_hide_comment_awards_title" />
-
-    <ml.docilealligator.infinityforreddit.customviews.CustomFontSwitchPreference
-        app:defaultValue="false"
         app:key="always_show_child_comment_count"
         android:title="@string/settings_always_show_child_comment_count_title" />
 
@@ -67,5 +62,13 @@
         app:key="show_fewer_toolbar_options_threshold"
         app:title="@string/settings_show_fewer_toolbar_options_threshold_title"
         app:singleLineTitle="false" />
+
+    <ml.docilealligator.infinityforreddit.customviews.CustomFontListPreference
+        app:defaultValue="15"
+        app:entries="@array/settings_embedded_media_type"
+        app:entryValues="@array/settings_embedded_media_type_values"
+        app:key="embedded_media_type"
+        app:title="@string/settings_embedded_media_type_title"
+        app:useSimpleSummaryProvider="true" />
 
 </PreferenceScreen>

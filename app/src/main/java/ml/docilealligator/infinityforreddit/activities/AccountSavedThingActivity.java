@@ -70,8 +70,6 @@ public class AccountSavedThingActivity extends BaseActivity implements ActivityT
     Executor mExecutor;
     private FragmentManager fragmentManager;
     private SectionsPagerAdapter sectionsPagerAdapter;
-    private String mAccessToken;
-    private String mAccountName;
     private PostLayoutBottomSheetFragment postLayoutBottomSheetFragment;
     private ActivityAccountSavedThingBinding binding;
 
@@ -118,9 +116,6 @@ public class AccountSavedThingActivity extends BaseActivity implements ActivityT
 
         fragmentManager = getSupportFragmentManager();
 
-        mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
-
         initializeViewPager();
     }
 
@@ -139,7 +134,12 @@ public class AccountSavedThingActivity extends BaseActivity implements ActivityT
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
@@ -156,7 +156,6 @@ public class AccountSavedThingActivity extends BaseActivity implements ActivityT
     private void initializeViewPager() {
         sectionsPagerAdapter = new SectionsPagerAdapter(this);
         binding.accountSavedThingViewPager2.setAdapter(sectionsPagerAdapter);
-        binding.accountSavedThingViewPager2.setOffscreenPageLimit(2);
         binding.accountSavedThingViewPager2.setUserInputEnabled(!mSharedPreferences.getBoolean(SharedPreferencesUtils.DISABLE_SWIPING_BETWEEN_TABS, false));
         new TabLayoutMediator(binding.accountSavedThingTabLayout, binding.accountSavedThingViewPager2, (tab, position) -> {
             switch (position) {
@@ -246,14 +245,14 @@ public class AccountSavedThingActivity extends BaseActivity implements ActivityT
     @Override
     public void postLayoutSelected(int postLayout) {
         if (sectionsPagerAdapter != null) {
-            mPostLayoutSharedPreferences.edit().putInt(SharedPreferencesUtils.POST_LAYOUT_USER_POST_BASE + mAccountName, postLayout).apply();
+            mPostLayoutSharedPreferences.edit().putInt(SharedPreferencesUtils.POST_LAYOUT_USER_POST_BASE + accountName, postLayout).apply();
             sectionsPagerAdapter.changePostLayout(postLayout);
         }
     }
 
     @Override
     public void markPostAsRead(Post post) {
-        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, mAccountName, post.getId());
+        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, accountName, post.getId());
     }
 
     private class SectionsPagerAdapter extends FragmentStateAdapter {
@@ -269,19 +268,15 @@ public class AccountSavedThingActivity extends BaseActivity implements ActivityT
                 PostFragment fragment = new PostFragment();
                 Bundle bundle = new Bundle();
                 bundle.putInt(PostFragment.EXTRA_POST_TYPE, PostPagingSource.TYPE_USER);
-                bundle.putString(PostFragment.EXTRA_USER_NAME, mAccountName);
+                bundle.putString(PostFragment.EXTRA_USER_NAME, accountName);
                 bundle.putString(PostFragment.EXTRA_USER_WHERE, PostPagingSource.USER_WHERE_SAVED);
-                bundle.putString(PostFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
-                bundle.putString(PostFragment.EXTRA_ACCOUNT_NAME, mAccountName);
                 bundle.putBoolean(PostFragment.EXTRA_DISABLE_READ_POSTS, true);
                 fragment.setArguments(bundle);
                 return fragment;
             }
             CommentsListingFragment fragment = new CommentsListingFragment();
             Bundle bundle = new Bundle();
-            bundle.putString(CommentsListingFragment.EXTRA_USERNAME, mAccountName);
-            bundle.putString(CommentsListingFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
-            bundle.putString(CommentsListingFragment.EXTRA_ACCOUNT_NAME, mAccountName);
+            bundle.putString(CommentsListingFragment.EXTRA_USERNAME, accountName);
             bundle.putBoolean(CommentsListingFragment.EXTRA_ARE_SAVED_COMMENTS, true);
             fragment.setArguments(bundle);
             return fragment;

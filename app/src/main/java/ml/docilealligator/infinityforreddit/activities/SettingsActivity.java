@@ -22,7 +22,6 @@ import org.greenrobot.eventbus.ThreadMode;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
@@ -30,16 +29,11 @@ import ml.docilealligator.infinityforreddit.databinding.ActivitySettingsBinding;
 import ml.docilealligator.infinityforreddit.events.RecreateActivityEvent;
 import ml.docilealligator.infinityforreddit.settings.AboutPreferenceFragment;
 import ml.docilealligator.infinityforreddit.settings.AdvancedPreferenceFragment;
-import ml.docilealligator.infinityforreddit.settings.CustomizeBottomAppBarFragment;
-import ml.docilealligator.infinityforreddit.settings.CustomizeMainPageTabsFragment;
 import ml.docilealligator.infinityforreddit.settings.FontPreferenceFragment;
 import ml.docilealligator.infinityforreddit.settings.GesturesAndButtonsPreferenceFragment;
 import ml.docilealligator.infinityforreddit.settings.InterfacePreferenceFragment;
 import ml.docilealligator.infinityforreddit.settings.MainPreferenceFragment;
-import ml.docilealligator.infinityforreddit.settings.NsfwAndSpoilerFragment;
-import ml.docilealligator.infinityforreddit.settings.PostHistoryFragment;
 import ml.docilealligator.infinityforreddit.settings.PostPreferenceFragment;
-import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 
 public class SettingsActivity extends BaseActivity implements
         PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
@@ -47,7 +41,6 @@ public class SettingsActivity extends BaseActivity implements
     private static final String TITLE_STATE = "TS";
 
     private ActivitySettingsBinding binding;
-    private String mAccountName;
 
     @Inject
     @Named("default")
@@ -69,8 +62,6 @@ public class SettingsActivity extends BaseActivity implements
         binding = ActivitySettingsBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        ButterKnife.bind(this);
-
         EventBus.getDefault().register(this);
 
         applyCustomTheme();
@@ -80,8 +71,6 @@ public class SettingsActivity extends BaseActivity implements
         }
 
         setSupportActionBar(binding.toolbarSettingsActivity);
-
-        mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
 
         if (savedInstanceState == null) {
             getSupportFragmentManager()
@@ -120,7 +109,12 @@ public class SettingsActivity extends BaseActivity implements
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
@@ -154,21 +148,12 @@ public class SettingsActivity extends BaseActivity implements
     }
 
     @Override
-    public boolean onPreferenceStartFragment(PreferenceFragmentCompat caller, Preference pref) {
+    public boolean onPreferenceStartFragment(@NonNull PreferenceFragmentCompat caller, Preference pref) {
         // Instantiate the new Fragment
         final Bundle args = pref.getExtras();
         final Fragment fragment = getSupportFragmentManager().getFragmentFactory().instantiate(
                 getClassLoader(),
                 pref.getFragment());
-        if (fragment instanceof CustomizeMainPageTabsFragment) {
-            args.putString(CustomizeMainPageTabsFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-        } else if (fragment instanceof NsfwAndSpoilerFragment) {
-            args.putString(NsfwAndSpoilerFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-        } else if (fragment instanceof CustomizeBottomAppBarFragment) {
-            args.putString(CustomizeBottomAppBarFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-        } else if (fragment instanceof PostHistoryFragment) {
-            args.putString(PostHistoryFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-        }
         fragment.setArguments(args);
         fragment.setTargetFragment(caller, 0);
 

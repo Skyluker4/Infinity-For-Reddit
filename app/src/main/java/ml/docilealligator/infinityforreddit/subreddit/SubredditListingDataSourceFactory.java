@@ -1,27 +1,41 @@
 package ml.docilealligator.infinityforreddit.subreddit;
 
+import android.os.Handler;
+
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.lifecycle.MutableLiveData;
 import androidx.paging.DataSource;
+
+import java.util.concurrent.Executor;
 
 import ml.docilealligator.infinityforreddit.SortType;
 import retrofit2.Retrofit;
 
 public class SubredditListingDataSourceFactory extends DataSource.Factory {
-    private Retrofit retrofit;
-    private String query;
+    private final Executor executor;
+    private final Handler handler;
+    private final Retrofit retrofit;
+    private final String query;
     private SortType sortType;
-    private String accessToken;
-    private boolean nsfw;
+    @Nullable
+    private final String accessToken;
+    @NonNull
+    private final String accountName;
+    private final boolean nsfw;
 
     private SubredditListingDataSource subredditListingDataSource;
-    private MutableLiveData<SubredditListingDataSource> subredditListingDataSourceMutableLiveData;
+    private final MutableLiveData<SubredditListingDataSource> subredditListingDataSourceMutableLiveData;
 
-    SubredditListingDataSourceFactory(Retrofit retrofit, String query, SortType sortType, String accessToken, boolean nsfw) {
+    SubredditListingDataSourceFactory(Executor executor, Handler handler, Retrofit retrofit, String query, SortType sortType,
+                                      @Nullable String accessToken, @NonNull String accountName, boolean nsfw) {
+        this.executor = executor;
+        this.handler = handler;
         this.retrofit = retrofit;
         this.query = query;
         this.sortType = sortType;
         this.accessToken = accessToken;
+        this.accountName = accountName;
         this.nsfw = nsfw;
         subredditListingDataSourceMutableLiveData = new MutableLiveData<>();
     }
@@ -29,7 +43,8 @@ public class SubredditListingDataSourceFactory extends DataSource.Factory {
     @NonNull
     @Override
     public DataSource create() {
-        subredditListingDataSource = new SubredditListingDataSource(retrofit, query, sortType, accessToken, nsfw);
+        subredditListingDataSource = new SubredditListingDataSource(executor, handler, retrofit, query, sortType,
+                accessToken, accountName, nsfw);
         subredditListingDataSourceMutableLiveData.postValue(subredditListingDataSource);
         return subredditListingDataSource;
     }

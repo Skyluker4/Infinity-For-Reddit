@@ -13,12 +13,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.widget.Toolbar;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.fragment.app.Fragment;
-
-import com.google.android.material.appbar.AppBarLayout;
-import com.google.android.material.appbar.CollapsingToolbarLayout;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -30,8 +25,6 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import butterknife.BindView;
-import butterknife.ButterKnife;
 import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.AnyAccountAccessTokenAuthenticator;
 import ml.docilealligator.infinityforreddit.FetchSubscribedThing;
@@ -42,6 +35,7 @@ import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.asynctasks.InsertSubscribedThings;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
+import ml.docilealligator.infinityforreddit.databinding.ActivitySubredditSelectionBinding;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.fragments.SubscribedSubredditsListingFragment;
 import ml.docilealligator.infinityforreddit.subreddit.SubredditData;
@@ -64,14 +58,6 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
     private static final String INSERT_SUBSCRIBED_SUBREDDIT_STATE = "ISSS";
     private static final String FRAGMENT_OUT_STATE = "FOS";
 
-    @BindView(R.id.coordinator_layout_subreddit_selection_activity)
-    CoordinatorLayout coordinatorLayout;
-    @BindView(R.id.appbar_layout_subreddit_selection_activity)
-    AppBarLayout appBarLayout;
-    @BindView(R.id.collapsing_toolbar_layout_subreddit_selection_activity)
-    CollapsingToolbarLayout collapsingToolbarLayout;
-    @BindView(R.id.toolbar_subreddit_selection_activity)
-    Toolbar toolbar;
     @Inject
     @Named("no_oauth")
     Retrofit mRetrofit;
@@ -90,11 +76,10 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
     CustomThemeWrapper mCustomThemeWrapper;
     @Inject
     Executor mExecutor;
-    private String mAccessToken;
-    private String mAccountName;
     private String mAccountProfileImageUrl;
     private boolean mInsertSuccess = false;
     private Fragment mFragment;
+    private ActivitySubredditSelectionBinding binding;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,9 +87,8 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
 
         super.onCreate(savedInstanceState);
 
-        setContentView(R.layout.activity_subreddit_selection);
-
-        ButterKnife.bind(this);
+        binding = ActivitySubredditSelectionBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         EventBus.getDefault().register(this);
 
@@ -118,7 +102,7 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
             Window window = getWindow();
 
             if (isChangeStatusBarIconColor()) {
-                addOnOffsetChangedListener(appBarLayout);
+                addOnOffsetChangedListener(binding.appbarLayoutSubredditSelectionActivity);
             }
 
             if (isImmersiveInterface()) {
@@ -127,18 +111,18 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(toolbar);
+                adjustToolbar(binding.toolbarSubredditSelectionActivity);
             }
         }
 
-        setSupportActionBar(toolbar);
+        setSupportActionBar(binding.toolbarSubredditSelectionActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         if (getIntent().hasExtra(EXTRA_SPECIFIED_ACCOUNT)) {
             Account specifiedAccount = getIntent().getParcelableExtra(EXTRA_SPECIFIED_ACCOUNT);
             if (specifiedAccount != null) {
-                mAccessToken = specifiedAccount.getAccessToken();
-                mAccountName = specifiedAccount.getAccountName();
+                accessToken = specifiedAccount.getAccessToken();
+                accountName = specifiedAccount.getAccountName();
                 mAccountProfileImageUrl = specifiedAccount.getProfileImageUrl();
 
                 mOauthRetrofit = mOauthRetrofit.newBuilder().client(new OkHttpClient.Builder().authenticator(new AnyAccountAccessTokenAuthenticator(mRetrofit, mRedditDataRoomDatabase, specifiedAccount, mCurrentAccountSharedPreferences))
@@ -149,13 +133,9 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
                         .build())
                         .build();
             } else {
-                mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-                mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
                 mAccountProfileImageUrl = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_IMAGE_URL, null);
             }
         } else {
-            mAccessToken = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
-            mAccountName = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_NAME, null);
             mAccountProfileImageUrl = mCurrentAccountSharedPreferences.getString(SharedPreferencesUtils.ACCOUNT_IMAGE_URL, null);
         }
 
@@ -176,14 +156,20 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
     }
 
     @Override
-    protected CustomThemeWrapper getCustomThemeWrapper() {
+    public SharedPreferences getCurrentAccountSharedPreferences() {
+        return mCurrentAccountSharedPreferences;
+    }
+
+    @Override
+    public CustomThemeWrapper getCustomThemeWrapper() {
         return mCustomThemeWrapper;
     }
 
     @Override
     protected void applyCustomTheme() {
-        coordinatorLayout.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
-        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(appBarLayout, collapsingToolbarLayout, toolbar);
+        binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
+        applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutSubredditSelectionActivity,
+                binding.collapsingToolbarLayoutSubredditSelectionActivity, binding.toolbarSubredditSelectionActivity);
     }
 
     private void bindView(boolean initializeFragment) {
@@ -196,8 +182,6 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
         if (initializeFragment) {
             mFragment = new SubscribedSubredditsListingFragment();
             Bundle bundle = new Bundle();
-            bundle.putString(SubscribedSubredditsListingFragment.EXTRA_ACCOUNT_NAME, mAccountName);
-            bundle.putString(SubscribedSubredditsListingFragment.EXTRA_ACCESS_TOKEN, mAccessToken);
             bundle.putString(SubscribedSubredditsListingFragment.EXTRA_ACCOUNT_PROFILE_IMAGE_URL, mAccountProfileImageUrl);
             bundle.putBoolean(SubscribedSubredditsListingFragment.EXTRA_IS_SUBREDDIT_SELECTION, true);
             if (getIntent().hasExtra(EXTRA_EXTRA_CLEAR_SELECTION)) {
@@ -211,7 +195,7 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
 
     private void loadSubscriptions() {
         if (!mInsertSuccess) {
-            FetchSubscribedThing.fetchSubscribedThing(mOauthRetrofit, mAccessToken, mAccountName, null,
+            FetchSubscribedThing.fetchSubscribedThing(mOauthRetrofit, accessToken, accountName, null,
                     new ArrayList<>(), new ArrayList<>(),
                     new ArrayList<>(),
                     new FetchSubscribedThing.FetchSubscribedThingListener() {
@@ -223,7 +207,7 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
                                     mExecutor,
                                     new Handler(),
                                     mRedditDataRoomDatabase,
-                                    mAccountName,
+                                    accountName,
                                     subscribedSubredditData,
                                     subscribedUserData,
                                     subredditData,
