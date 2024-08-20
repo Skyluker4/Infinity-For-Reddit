@@ -74,7 +74,7 @@ import ml.docilealligator.infinityforreddit.adapters.SubredditAutocompleteRecycl
 import ml.docilealligator.infinityforreddit.apis.RedditAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.AddSubredditOrUserToMultiReddit;
 import ml.docilealligator.infinityforreddit.asynctasks.CheckIsFollowingUser;
-import ml.docilealligator.infinityforreddit.asynctasks.SwitchAccount;
+import ml.docilealligator.infinityforreddit.asynctasks.AccountManagement;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.CopyTextBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.FABMoreOptionsBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.KarmaInfoBottomSheetFragment;
@@ -166,6 +166,7 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
     private SectionsPagerAdapter sectionsPagerAdapter;
     private RequestManager glide;
     private NavigationWrapper navigationWrapper;
+    private Runnable autoCompleteRunnable;
     private Call<String> subredditAutocompleteCall;
     private String username;
     private String description;
@@ -236,6 +237,8 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
             mMessageFullname = savedInstanceState.getString(MESSAGE_FULLNAME_STATE);
             mNewAccountName = savedInstanceState.getString(NEW_ACCOUNT_NAME_STATE);
         }
+
+        sectionsPagerAdapter = new SectionsPagerAdapter(this);
 
         checkNewAccountAndInitializeViewPager();
 
@@ -606,7 +609,7 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
     private void checkNewAccountAndInitializeViewPager() {
         if (mNewAccountName != null) {
             if (accountName.equals(Account.ANONYMOUS_ACCOUNT) || !accountName.equals(mNewAccountName)) {
-                SwitchAccount.switchAccount(mRedditDataRoomDatabase, mCurrentAccountSharedPreferences,
+                AccountManagement.switchAccount(mRedditDataRoomDatabase, mCurrentAccountSharedPreferences,
                         mExecutor, new Handler(), mNewAccountName, newAccount -> {
                             EventBus.getDefault().post(new SwitchAccountEvent(getClass().getName()));
                             Toast.makeText(this, R.string.account_switched, Toast.LENGTH_SHORT).show();
@@ -628,9 +631,7 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
     }
 
     private void initializeViewPager() {
-        sectionsPagerAdapter = new SectionsPagerAdapter(this);
         binding.viewPagerViewUserDetailActivity.setAdapter(sectionsPagerAdapter);
-        binding.viewPagerViewUserDetailActivity.setOffscreenPageLimit(ViewPager2.OFFSCREEN_PAGE_LIMIT_DEFAULT);
         binding.viewPagerViewUserDetailActivity.setUserInputEnabled(!mSharedPreferences.getBoolean(SharedPreferencesUtils.DISABLE_SWIPING_BETWEEN_TABS, false));
         new TabLayoutMediator(binding.tabLayoutViewUserDetailActivity, binding.viewPagerViewUserDetailActivity, (tab, position) -> {
             switch (position) {
@@ -826,6 +827,8 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
                 }
                 case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_FAB_SEARCH: {
                     Intent intent = new Intent(this, SearchActivity.class);
+                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, username);
+                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, true);
                     startActivity(intent);
                     break;
                 }
@@ -914,6 +917,8 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
             }
             case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_SEARCH: {
                 Intent intent = new Intent(this, SearchActivity.class);
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, username);
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, true);
                 startActivity(intent);
                 break;
             }
@@ -1091,8 +1096,8 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
             return true;
         } else if (itemId == R.id.action_search_view_user_detail_activity) {
             Intent intent = new Intent(this, SearchActivity.class);
-            intent.putExtra(SearchActivity.EXTRA_SUBREDDIT_NAME, username);
-            intent.putExtra(SearchActivity.EXTRA_SUBREDDIT_IS_USER, true);
+            intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, username);
+            intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, true);
             startActivity(intent);
             return true;
         } else if (itemId == R.id.action_refresh_view_user_detail_activity) {
@@ -1277,6 +1282,8 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
                 break;
             case FABMoreOptionsBottomSheetFragment.FAB_OPTION_SEARCH:
                 Intent intent = new Intent(this, SearchActivity.class);
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, username);
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, true);
                 startActivity(intent);
                 break;
             case FABMoreOptionsBottomSheetFragment.FAB_OPTION_GO_TO_SUBREDDIT: {
@@ -1347,40 +1354,50 @@ public class ViewUserDetailActivity extends BaseActivity implements SortTypeSele
 
             @Override
             public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
+                if (subredditAutocompleteCall != null && subredditAutocompleteCall.isExecuted()) {
+                    subredditAutocompleteCall.cancel();
+                }
+                if (autoCompleteRunnable != null) {
+                    handler.removeCallbacks(autoCompleteRunnable);
+                }
             }
 
             @Override
             public void afterTextChanged(Editable editable) {
-                if (subredditAutocompleteCall != null) {
-                    subredditAutocompleteCall.cancel();
+                String currentQuery = editable.toString().trim();
+                if (!currentQuery.isEmpty()) {
+                    autoCompleteRunnable = () -> {
+                        subredditAutocompleteCall = mOauthRetrofit.create(RedditAPI.class).subredditAutocomplete(APIUtils.getOAuthHeader(accessToken),
+                                currentQuery, nsfw);
+                        subredditAutocompleteCall.enqueue(new Callback<>() {
+                            @Override
+                            public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
+                                subredditAutocompleteCall = null;
+                                if (response.isSuccessful()) {
+                                    ParseSubredditData.parseSubredditListingData(mExecutor, handler,
+                                            response.body(), nsfw, new ParseSubredditData.ParseSubredditListingDataListener() {
+                                                @Override
+                                                public void onParseSubredditListingDataSuccess(ArrayList<SubredditData> subredditData, String after) {
+                                                    adapter.setSubreddits(subredditData);
+                                                }
+
+                                                @Override
+                                                public void onParseSubredditListingDataFail() {
+
+                                                }
+                                            });
+                                }
+                            }
+
+                            @Override
+                            public void onFailure(@NonNull Call<String> call, @NonNull Throwable t) {
+                                subredditAutocompleteCall = null;
+                            }
+                        });
+                    };
+
+                    handler.postDelayed(autoCompleteRunnable, 500);
                 }
-                subredditAutocompleteCall = mOauthRetrofit.create(RedditAPI.class).subredditAutocomplete(APIUtils.getOAuthHeader(accessToken),
-                        editable.toString(), nsfw);
-                subredditAutocompleteCall.enqueue(new Callback<String>() {
-                    @Override
-                    public void onResponse(@NonNull Call<String> call, @NonNull Response<String> response) {
-                        if (response.isSuccessful()) {
-                            ParseSubredditData.parseSubredditListingData(mExecutor, handler,
-                                    response.body(), nsfw, new ParseSubredditData.ParseSubredditListingDataListener() {
-                                        @Override
-                                        public void onParseSubredditListingDataSuccess(ArrayList<SubredditData> subredditData, String after) {
-                                            adapter.setSubreddits(subredditData);
-                                        }
-
-                                        @Override
-                                        public void onParseSubredditListingDataFail() {
-
-                                        }
-                                    });
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<String> call, @NonNull Throwable t) {
-
-                    }
-                });
             }
         });
         new MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialogTheme)
