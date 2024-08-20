@@ -67,15 +67,15 @@ dependencies {
     implementation 'androidx.cardview:cardview:1.0.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.activity:activity:1.9.0'
-    def lifecycleVersion = "2.7.0"
+    implementation 'androidx.activity:activity:1.9.1'
+    def lifecycleVersion = '2.8.4'
     implementation "androidx.lifecycle:lifecycle-common-java8:$lifecycleVersion"
     implementation "androidx.lifecycle:lifecycle-livedata:$lifecycleVersion"
     implementation "androidx.lifecycle:lifecycle-process:$lifecycleVersion"
     implementation "androidx.lifecycle:lifecycle-runtime:$lifecycleVersion"
     implementation "androidx.lifecycle:lifecycle-viewmodel:$lifecycleVersion"
 
-    def pagingVersion = '3.3.0'
+    def pagingVersion = '3.3.2'
     implementation "androidx.paging:paging-runtime:$pagingVersion"
     implementation "androidx.paging:paging-guava:$pagingVersion"
     implementation 'androidx.preference:preference:1.2.1'
@@ -85,11 +85,11 @@ dependencies {
     annotationProcessor "androidx.room:room-compiler:$roomVersion"
     implementation "androidx.room:room-guava:$roomVersion"
     implementation 'androidx.viewpager2:viewpager2:1.1.0'
-    implementation 'androidx.work:work-runtime:2.9.0'
+    implementation 'androidx.work:work-runtime:2.9.1'
     implementation 'com.google.android.material:material:1.12.0'
 
 /** ExoPlayer **/
-    def media3_version = "1.4.0-alpha02"
+    def media3_version = '1.4.0'
     implementation "androidx.media3:media3-exoplayer:$media3_version"
     implementation "androidx.media3:media3-exoplayer-dash:$media3_version"
     implementation "androidx.media3:media3-exoplayer-hls:$media3_version"
@@ -108,12 +108,12 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 
     // Dependency injection
-    def daggerVersion = '2.51.1'
+    def daggerVersion = '2.52'
     implementation "com.google.dagger:dagger:$daggerVersion"
     annotationProcessor "com.google.dagger:dagger-compiler:$daggerVersion"
 
     // Binding
-    compileOnly 'com.android.databinding:viewbinding:8.5.1'
+    compileOnly 'com.android.databinding:viewbinding:8.5.2'
 
     // Events
     def eventbusVersion = "3.3.1"
@@ -166,17 +166,17 @@ dependencies {
     implementation "io.noties.markwon:simple-ext:$markwonVersion"
     implementation "io.noties.markwon:inline-parser:$markwonVersion"
     implementation "io.noties.markwon:image-glide:$markwonVersion"
-    implementation 'com.atlassian.commonmark:commonmark-ext-gfm-tables:0.14.0'
+    implementation 'com.atlassian.commonmark:commonmark-ext-gfm-tables:0.15.2'
     implementation 'me.saket:better-link-movement-method:2.2.0'
 
     // Animations
-    implementation 'com.airbnb.android:lottie:6.4.1'
+    implementation 'com.airbnb.android:lottie:6.5.0'
 
     // Loading ProgressBar
     implementation 'com.lsjwzh:materialloadingprogressbar:0.5.8-RELEASE'
 
     // Customizable TextView
-    implementation 'com.libRG:customtextview:2.4'
+    implementation files('libs/customtextview-2.1.aar')
 
     // Dismiss gesturing
     implementation 'app.futured.hauler:hauler:5.0.0'
