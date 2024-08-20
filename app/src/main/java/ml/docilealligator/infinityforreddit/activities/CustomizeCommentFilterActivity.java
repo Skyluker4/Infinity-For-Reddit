@@ -48,6 +48,7 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
     public static final String RETURN_EXTRA_COMMENT_FILTER = "RECF";
     private static final String COMMENT_FILTER_STATE = "CFS";
     private static final String ORIGINAL_NAME_STATE = "ONS";
+    private static final String DISPLAY_MODE_SELECTED_ITEM_INDEX_STATE = "DMSIIS";
     @Inject
     RedditDataRoomDatabase mRedditDataRoomDatabase;
     @Inject
@@ -122,6 +123,7 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
         if (savedInstanceState != null) {
             commentFilter = savedInstanceState.getParcelable(COMMENT_FILTER_STATE);
             originalName = savedInstanceState.getString(ORIGINAL_NAME_STATE);
+            binding.displayModeSpinnerCustomizeCommentFilterActivity.setSelection(savedInstanceState.getInt(DISPLAY_MODE_SELECTED_ITEM_INDEX_STATE), false);
         } else {
             commentFilter = getIntent().getParcelableExtra(EXTRA_COMMENT_FILTER);
             if (commentFilter == null) {
@@ -178,14 +180,24 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
         applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutCustomizeCommentFilterActivity, binding.collapsingToolbarLayoutCustomizeCommentFilterActivity, binding.toolbarCustomizeCommentFilterActivity);
         int primaryTextColor = mCustomThemeWrapper.getPrimaryTextColor();
         int primaryIconColor = mCustomThemeWrapper.getPrimaryIconColor();
+        int filledCardViewBackgroundColor = mCustomThemeWrapper.getFilledCardViewBackgroundColor();
+
+        binding.nameCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.nameExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
         binding.nameTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.nameTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.nameTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
+
+        binding.displayModeCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.displayModeExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
         binding.displayModeTitleTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.displayModeSpinnerCustomizeCommentFilterActivity.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                ((TextView) parent.getChildAt(0)).setTextColor(primaryTextColor);
+                View child = parent.getChildAt(0);
+                if (child instanceof TextView) {
+                    ((TextView) child).setTextColor(primaryTextColor);
+                }
             }
 
             @Override
@@ -193,15 +205,25 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
 
             }
         });
+
+        binding.excludeStringsCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.excludeStringsExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
         binding.excludeStringsTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.excludeStringsTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.excludeStringsTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
+
+        binding.excludeUsersCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.excludeUsersExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
         binding.excludeUsersTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.excludeUsersTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.addUsersImageViewCustomizeCommentFilterActivity.setImageDrawable(Utils.getTintedDrawable(this, R.drawable.ic_add_24dp, primaryIconColor));
+
+        binding.voteCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.minVoteExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
         binding.minVoteTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.minVoteTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.minVoteTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
+        binding.maxVoteExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
         binding.maxVoteTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.maxVoteTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.maxVoteTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
@@ -326,5 +348,6 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
         super.onSaveInstanceState(outState);
         outState.putParcelable(COMMENT_FILTER_STATE, commentFilter);
         outState.putString(ORIGINAL_NAME_STATE, originalName);
+        outState.putInt(DISPLAY_MODE_SELECTED_ITEM_INDEX_STATE, binding.displayModeSpinnerCustomizeCommentFilterActivity.getSelectedItemPosition());
     }
 }

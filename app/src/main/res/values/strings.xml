@@ -1153,6 +1153,7 @@
     <string name="edit_post_filter_name_of_usage_info">Leave it blank to apply this post filter to all the subreddits / users / multireddits</string>
     <string name="click_to_apply_post_filter">Click here to apply it to some post feeds</string>
     <string name="post_filter_usage_embedded_more_count">and %1$d more</string>
+    <string name="post_filter_name_explanation">The post filter name should be unique.</string>
     <string name="post_filter_post_type_explanation">To see certain types of posts, please turn on the switch corresponding to the types.</string>
     <string name="post_filter_only_nsfw_spoiler_explanation">To only see NSFW or spoiler posts, please turn on the corresponding switch.</string>
     <string name="post_filter_title_excludes_strings_explanation">Posts will be filtered out if they contain the following keywords in their title.</string>
@@ -1424,5 +1425,11 @@
     <string name="comment_filter_display_mode">Display mode</string>
     <string name="comment_filter_display_mode_remove_comments">Remove comments</string>
     <string name="comment_filter_display_mode_fully_collapse_comments">Fully collapse comments</string>
+    <string name="comment_filter_name_explanation">The comment filter name should be unique.</string>
+    <string name="comment_filter_display_mode_explanation">Filtered out comments will be shown as the following selected option.</string>
+    <string name="comment_filter_exclude_strings_explanation">Comments will be filtered out if they contain the following keywords.</string>
+    <string name="comment_filter_exclude_users_explanation">Comments will be filtered out if they were submitted by the following users.</string>
+    <string name="comment_filter_min_vote_explanation">Comments that have a score lower than the following value will be filtered out (-1 means no restriction).</string>
+    <string name="comment_filter_max_vote_explanation">Comments that have a score higher than the following value will be filtered out (-1 means no restriction).</string>
 
 </resources>
