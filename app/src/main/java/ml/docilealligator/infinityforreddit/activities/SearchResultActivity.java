@@ -44,6 +44,7 @@ import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RecyclerViewContentScrollingInterface;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.SortType;
 import ml.docilealligator.infinityforreddit.SortTypeSelectionCallback;
 import ml.docilealligator.infinityforreddit.account.Account;
@@ -64,6 +65,7 @@ import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.fragments.PostFragment;
 import ml.docilealligator.infinityforreddit.fragments.SubredditListingFragment;
 import ml.docilealligator.infinityforreddit.fragments.UserListingFragment;
+import ml.docilealligator.infinityforreddit.multireddit.MultiReddit;
 import ml.docilealligator.infinityforreddit.post.PostPagingSource;
 import ml.docilealligator.infinityforreddit.recentsearchquery.InsertRecentSearchQuery;
 import ml.docilealligator.infinityforreddit.subreddit.ParseSubredditData;
@@ -81,10 +83,12 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
         FABMoreOptionsBottomSheetFragment.FABOptionSelectionCallback, RandomBottomSheetFragment.RandomOptionSelectionCallback,
         PostTypeBottomSheetFragment.PostTypeSelectionCallback, RecyclerViewContentScrollingInterface {
 
-    static final String EXTRA_QUERY = "EQ";
-    static final String EXTRA_TRENDING_SOURCE = "ETS";
-    static final String EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME = "ESISOUN";
-    public static final String EXTRA_SEARCH_IN_SUBREDDIT_IS_USER = "ESISIU";
+    public static final String EXTRA_QUERY = "EQ";
+    public static final String EXTRA_TRENDING_SOURCE = "ETS";
+    public static final String EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME = "ESISOUN";
+    public static final String EXTRA_SEARCH_IN_MULTIREDDIT = "ESIM";
+    public static final String EXTRA_SEARCH_IN_THING_TYPE = "ESITT";
+    public static final String EXTRA_SHOULD_RETURN_SUBREDDIT_AND_USER_NAME = "ESRSAUN";
 
     private static final String INSERT_SEARCH_QUERY_SUCCESS_STATE = "ISQSS";
 
@@ -119,8 +123,11 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
     private Call<String> subredditAutocompleteCall;
     private String mQuery;
     private String mSearchInSubredditOrUserName;
-    private boolean mSearchInIsUser;
+    private MultiReddit mSearchInMultiReddit;
+    @SelectThingReturnKey.THING_TYPE
+    private int mSearchInThingType;
     private boolean mInsertSearchQuerySuccess;
+    private boolean mReturnSubredditAndUserName;
     private FragmentManager fragmentManager;
     private SectionsPagerAdapter sectionsPagerAdapter;
     private int fabOption;
@@ -177,7 +184,9 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
         String query = intent.getStringExtra(EXTRA_QUERY);
 
         mSearchInSubredditOrUserName = intent.getStringExtra(EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME);
-        mSearchInIsUser = intent.getBooleanExtra(EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, false);
+        mSearchInMultiReddit = intent.getParcelableExtra(EXTRA_SEARCH_IN_MULTIREDDIT);
+        mSearchInThingType = intent.getIntExtra(EXTRA_SEARCH_IN_THING_TYPE, SelectThingReturnKey.THING_TYPE.SUBREDDIT);
+        mReturnSubredditAndUserName = intent.getBooleanExtra(EXTRA_SHOULD_RETURN_SUBREDDIT_AND_USER_NAME, false);
 
         if (query != null) {
             mQuery = query;
@@ -241,16 +250,24 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
             }
         });
         new TabLayoutMediator(binding.tabLayoutSearchResultActivity, binding.viewPagerSearchResultActivity, (tab, position) -> {
-            switch (position) {
-                case 0:
-                    Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.posts));
-                    break;
-                case 1:
+            if (mReturnSubredditAndUserName) {
+                if (position == 0) {
                     Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.subreddits));
-                    break;
-                case 2:
+                } else {
                     Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.users));
-                    break;
+                }
+            } else {
+                switch (position) {
+                    case 0:
+                        Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.posts));
+                        break;
+                    case 1:
+                        Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.subreddits));
+                        break;
+                    case 2:
+                        Utils.setTitleWithCustomFontToTab(typeface, tab, getString(R.string.users));
+                        break;
+                }
             }
         }).attach();
         fixViewPager2Sensitivity(binding.viewPagerSearchResultActivity);
@@ -328,10 +345,9 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
                 }
                 case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_FAB_SEARCH: {
                     Intent intent = new Intent(this, SearchActivity.class);
-                    if (mSearchInSubredditOrUserName != null && !mSearchInSubredditOrUserName.equals("")) {
-                        intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, mSearchInSubredditOrUserName);
-                        intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, mSearchInIsUser);
-                    }
+                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, mSearchInSubredditOrUserName);
+                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_MULTIREDDIT, mSearchInMultiReddit);
+                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_THING_TYPE, mSearchInThingType);
                     startActivity(intent);
                     break;
                 }
@@ -374,10 +390,10 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
             return true;
         });
 
-        if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)&& mSharedPreferences.getBoolean(SharedPreferencesUtils.ENABLE_SEARCH_HISTORY, true) && !mInsertSearchQuerySuccess && mQuery != null) {
+        if (!accountName.equals(Account.ANONYMOUS_ACCOUNT) && mSharedPreferences.getBoolean(SharedPreferencesUtils.ENABLE_SEARCH_HISTORY, true) && !mInsertSearchQuerySuccess && mQuery != null) {
             InsertRecentSearchQuery.insertRecentSearchQueryListener(executor, new Handler(getMainLooper()),
-                    mRedditDataRoomDatabase, accountName, mQuery, mSearchInSubredditOrUserName, mSearchInIsUser,
-                    () -> mInsertSearchQuerySuccess = true);
+                    mRedditDataRoomDatabase, accountName, mQuery, mSearchInSubredditOrUserName, mSearchInMultiReddit,
+                    mSearchInThingType, () -> mInsertSearchQuerySuccess = true);
         }
     }
 
@@ -417,10 +433,9 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
             return true;
         } else if (itemId == R.id.action_search_search_result_activity) {
             Intent intent = new Intent(this, SearchActivity.class);
-            if (mSearchInSubredditOrUserName != null && !mSearchInSubredditOrUserName.equals("")) {
-                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, mSearchInSubredditOrUserName);
-                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, mSearchInIsUser);
-            }
+            intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, mSearchInSubredditOrUserName);
+            intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_MULTIREDDIT, mSearchInMultiReddit);
+            intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_THING_TYPE, mSearchInThingType);
             intent.putExtra(SearchActivity.EXTRA_QUERY, mQuery);
             finish();
             startActivity(intent);
@@ -530,10 +545,9 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
                 break;
             case FABMoreOptionsBottomSheetFragment.FAB_OPTION_SEARCH:
                 Intent intent = new Intent(this, SearchActivity.class);
-                if (mSearchInSubredditOrUserName != null && !mSearchInSubredditOrUserName.equals("")) {
-                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, mSearchInSubredditOrUserName);
-                    intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, mSearchInIsUser);
-                }
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, mSearchInSubredditOrUserName);
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_MULTIREDDIT, mSearchInMultiReddit);
+                intent.putExtra(SearchActivity.EXTRA_SEARCH_IN_THING_TYPE, mSearchInThingType);
                 startActivity(intent);
                 break;
             case FABMoreOptionsBottomSheetFragment.FAB_OPTION_GO_TO_SUBREDDIT: {
@@ -767,34 +781,64 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
         @NonNull
         @Override
         public Fragment createFragment(int position) {
-            switch (position) {
-                case 0: {
-                    PostFragment mFragment = new PostFragment();
-                    Bundle bundle = new Bundle();
-                    bundle.putInt(PostFragment.EXTRA_POST_TYPE, PostPagingSource.TYPE_SEARCH);
-                    bundle.putString(PostFragment.EXTRA_NAME, mSearchInIsUser ? "u_" + mSearchInSubredditOrUserName : mSearchInSubredditOrUserName);
-                    bundle.putString(PostFragment.EXTRA_QUERY, mQuery);
-                    bundle.putString(PostFragment.EXTRA_TRENDING_SOURCE, getIntent().getStringExtra(EXTRA_TRENDING_SOURCE));
-                    mFragment.setArguments(bundle);
-                    return mFragment;
+            if (mReturnSubredditAndUserName) {
+                if (position == 0) {
+                    return createSubredditListingFragment(true);
                 }
-                case 1: {
-                    SubredditListingFragment mFragment = new SubredditListingFragment();
-                    Bundle bundle = new Bundle();
-                    bundle.putString(SubredditListingFragment.EXTRA_QUERY, mQuery);
-                    bundle.putBoolean(SubredditListingFragment.EXTRA_IS_GETTING_SUBREDDIT_INFO, false);
-                    mFragment.setArguments(bundle);
-                    return mFragment;
-                }
-                default: {
-                    UserListingFragment mFragment = new UserListingFragment();
-                    Bundle bundle = new Bundle();
-                    bundle.putString(UserListingFragment.EXTRA_QUERY, mQuery);
-                    bundle.putBoolean(UserListingFragment.EXTRA_IS_GETTING_USER_INFO, false);
-                    mFragment.setArguments(bundle);
-                    return mFragment;
+                return createUserListingFragment(true);
+            } else {
+                switch (position) {
+                    case 0: {
+                        return createPostFragment();
+                    }
+                    case 1: {
+                        return createSubredditListingFragment(false);
+                    }
+                    default: {
+                        return createUserListingFragment(false);
+                    }
                 }
             }
+        }
+
+        private Fragment createPostFragment() {
+            PostFragment mFragment = new PostFragment();
+            Bundle bundle = new Bundle();
+            switch (mSearchInThingType) {
+                case SelectThingReturnKey.THING_TYPE.SUBREDDIT:
+                    bundle.putInt(PostFragment.EXTRA_POST_TYPE, PostPagingSource.TYPE_SEARCH);
+                    bundle.putString(PostFragment.EXTRA_NAME, mSearchInSubredditOrUserName);
+                    break;
+                case SelectThingReturnKey.THING_TYPE.USER:
+                    bundle.putInt(PostFragment.EXTRA_POST_TYPE, PostPagingSource.TYPE_SEARCH);
+                    bundle.putString(PostFragment.EXTRA_NAME, "u_" + mSearchInSubredditOrUserName);
+                    break;
+                case SelectThingReturnKey.THING_TYPE.MULTIREDDIT:
+                    bundle.putInt(PostFragment.EXTRA_POST_TYPE, PostPagingSource.TYPE_MULTI_REDDIT);
+                    bundle.putString(PostFragment.EXTRA_NAME, mSearchInMultiReddit.getPath());
+            }
+            bundle.putString(PostFragment.EXTRA_QUERY, mQuery);
+            bundle.putString(PostFragment.EXTRA_TRENDING_SOURCE, getIntent().getStringExtra(EXTRA_TRENDING_SOURCE));
+            mFragment.setArguments(bundle);
+            return mFragment;
+        }
+
+        private Fragment createSubredditListingFragment(boolean returnSubredditName) {
+            SubredditListingFragment mFragment = new SubredditListingFragment();
+            Bundle bundle = new Bundle();
+            bundle.putString(SubredditListingFragment.EXTRA_QUERY, mQuery);
+            bundle.putBoolean(SubredditListingFragment.EXTRA_IS_GETTING_SUBREDDIT_INFO, returnSubredditName);
+            mFragment.setArguments(bundle);
+            return mFragment;
+        }
+
+        private Fragment createUserListingFragment(boolean returnUsername) {
+            UserListingFragment mFragment = new UserListingFragment();
+            Bundle bundle = new Bundle();
+            bundle.putString(UserListingFragment.EXTRA_QUERY, mQuery);
+            bundle.putBoolean(UserListingFragment.EXTRA_IS_GETTING_USER_INFO, returnUsername);
+            mFragment.setArguments(bundle);
+            return mFragment;
         }
 
         @Nullable
@@ -896,6 +940,9 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
 
         @Override
         public int getItemCount() {
+            if (mReturnSubredditAndUserName) {
+                return 2;
+            }
             return 3;
         }
     }

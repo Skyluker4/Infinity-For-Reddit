@@ -31,6 +31,7 @@ import ml.docilealligator.infinityforreddit.FetchSubscribedThing;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.asynctasks.InsertSubscribedThings;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
@@ -50,9 +51,6 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
 
     public static final String EXTRA_SPECIFIED_ACCOUNT = "ESA";
     public static final String EXTRA_EXTRA_CLEAR_SELECTION = "EECS";
-    public static final String EXTRA_RETURN_SUBREDDIT_NAME = "ERSN";
-    public static final String EXTRA_RETURN_SUBREDDIT_ICON_URL = "ERSIURL";
-    public static final String EXTRA_RETURN_SUBREDDIT_IS_USER = "ERSIU";
 
     private static final int SUBREDDIT_SEARCH_REQUEST_CODE = 0;
     private static final String INSERT_SUBSCRIBED_SUBREDDIT_STATE = "ISSS";
@@ -245,25 +243,14 @@ public class SubredditSelectionActivity extends BaseActivity implements Activity
         return false;
     }
 
-    public void getSelectedSubreddit(String name, String iconUrl, boolean subredditIsUser) {
-        Intent returnIntent = new Intent();
-        returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_NAME, name);
-        returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_ICON_URL, iconUrl);
-        returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_IS_USER, subredditIsUser);
-        setResult(Activity.RESULT_OK, returnIntent);
-        finish();
-    }
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == SUBREDDIT_SEARCH_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
-                String name = data.getStringExtra(SearchActivity.EXTRA_RETURN_SUBREDDIT_NAME);
-                String iconUrl = data.getStringExtra(SearchActivity.EXTRA_RETURN_SUBREDDIT_ICON_URL);
                 Intent returnIntent = new Intent();
-                returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_NAME, name);
-                returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_ICON_URL, iconUrl);
-                returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_IS_USER, false);
+                returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME, data.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME));
+                returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON, data.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON));
+                returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_THING_TYPE, SelectThingReturnKey.THING_TYPE.SUBREDDIT);
                 setResult(Activity.RESULT_OK, returnIntent);
                 finish();
             }

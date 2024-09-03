@@ -16,6 +16,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.view.inputmethod.EditorInfoCompat;
@@ -39,6 +41,7 @@ import javax.inject.Named;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.SearchActivityRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.adapters.SubredditAutocompleteRecyclerViewAdapter;
@@ -47,6 +50,7 @@ import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
 import ml.docilealligator.infinityforreddit.databinding.ActivitySearchBinding;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
+import ml.docilealligator.infinityforreddit.multireddit.MultiReddit;
 import ml.docilealligator.infinityforreddit.recentsearchquery.RecentSearchQuery;
 import ml.docilealligator.infinityforreddit.recentsearchquery.RecentSearchQueryViewModel;
 import ml.docilealligator.infinityforreddit.subreddit.ParseSubredditData;
@@ -63,22 +67,20 @@ public class SearchActivity extends BaseActivity {
 
     public static final String EXTRA_QUERY = "EQ";
     public static final String EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME = "ESISOUN";
-    public static final String EXTRA_SEARCH_IN_SUBREDDIT_IS_USER = "ESISIU";
+    public static final String EXTRA_SEARCH_IN_MULTIREDDIT = "ESIM";
+    public static final String EXTRA_SEARCH_IN_THING_TYPE = "ESITY";
     public static final String EXTRA_SEARCH_ONLY_SUBREDDITS = "ESOS";
     public static final String EXTRA_SEARCH_ONLY_USERS = "ESOU";
-    public static final String EXTRA_RETURN_SUBREDDIT_NAME = "ERSN";
-    public static final String EXTRA_RETURN_SUBREDDIT_ICON_URL = "ERSIU";
+    public static final String EXTRA_SEARCH_SUBREDDITS_AND_USERS = "ESSAU";
     public static final String RETURN_EXTRA_SELECTED_SUBREDDIT_NAMES = "RESSN";
     public static final String RETURN_EXTRA_SELECTED_USERNAMES = "RESU";
-    public static final String EXTRA_RETURN_USER_NAME = "ERUN";
-    public static final String EXTRA_RETURN_USER_ICON_URL = "ERUIU";
     public static final String EXTRA_IS_MULTI_SELECTION = "EIMS";
     public static final int SUICIDE_PREVENTION_ACTIVITY_REQUEST_CODE = 101;
 
-    private static final String SUBREDDIT_NAME_STATE = "SNS";
-    private static final String SUBREDDIT_IS_USER_STATE = "SIUS";
+    private static final String SEARCH_IN_SUBREDDIT_OR_NAME_STATE = "SNS";
+    private static final String SEARCH_IN_THING_TYPE_STATE = "SITTS";
+    private static final String SEARCH_IN_MULTIREDDIT_STATE = "SIMS";
 
-    private static final int SUBREDDIT_SELECTION_REQUEST_CODE = 0;
     private static final int SUBREDDIT_SEARCH_REQUEST_CODE = 1;
     private static final int USER_SEARCH_REQUEST_CODE = 2;
 
@@ -102,15 +104,20 @@ public class SearchActivity extends BaseActivity {
     Executor executor;
     private String query;
     private String searchInSubredditOrUserName;
-    private boolean searchInIsUser;
+    private MultiReddit searchInMultiReddit;
+    @SelectThingReturnKey.THING_TYPE
+    private int searchInThingType;
     private boolean searchOnlySubreddits;
     private boolean searchOnlyUsers;
+    private boolean searchSubredditsAndUsers;
     private SearchActivityRecyclerViewAdapter adapter;
     private SubredditAutocompleteRecyclerViewAdapter subredditAutocompleteRecyclerViewAdapter;
     private Handler handler;
     private Runnable autoCompleteRunnable;
     private Call<String> subredditAutocompleteCall;
     RecentSearchQueryViewModel mRecentSearchQueryViewModel;
+    private ActivityResultLauncher<Intent> requestThingSelectionForCurrentActivityLauncher;
+    private ActivityResultLauncher<Intent> requestThingSelectionForAnotherActivityLauncher;
     private ActivitySearchBinding binding;
 
     @Override
@@ -139,26 +146,29 @@ public class SearchActivity extends BaseActivity {
 
         searchOnlySubreddits = getIntent().getBooleanExtra(EXTRA_SEARCH_ONLY_SUBREDDITS, false);
         searchOnlyUsers = getIntent().getBooleanExtra(EXTRA_SEARCH_ONLY_USERS, false);
+        searchSubredditsAndUsers = getIntent().getBooleanExtra(EXTRA_SEARCH_SUBREDDITS_AND_USERS, false);
 
         if (searchOnlySubreddits) {
-            binding.searchEditTextSearchActivity.setHint(getText(R.string.search_only_subreddits_hint));
+            binding.searchEditTextSearchActivity.setHint(R.string.search_only_subreddits_hint);
         } else if (searchOnlyUsers) {
-            binding.searchEditTextSearchActivity.setHint(getText(R.string.search_only_users_hint));
+            binding.searchEditTextSearchActivity.setHint(R.string.search_only_users_hint);
+        } else if (searchSubredditsAndUsers) {
+            binding.searchEditTextSearchActivity.setHint(R.string.search_subreddits_and_users_hint);
         }
 
         boolean nsfw = mNsfwAndSpoilerSharedPreferences.getBoolean((accountName.equals(Account.ANONYMOUS_ACCOUNT) ? "" : accountName) + SharedPreferencesUtils.NSFW_BASE, false);
 
         subredditAutocompleteRecyclerViewAdapter = new SubredditAutocompleteRecyclerViewAdapter(this,
                 mCustomThemeWrapper, subredditData -> {
-            if (searchOnlySubreddits) {
+            if (searchOnlySubreddits || searchSubredditsAndUsers) {
                 Intent returnIntent = new Intent();
                 if (getIntent().getBooleanExtra(EXTRA_IS_MULTI_SELECTION, false)) {
                     ArrayList<String> subredditNameList = new ArrayList<>();
                     subredditNameList.add(subredditData.getName());
                     returnIntent.putStringArrayListExtra(RETURN_EXTRA_SELECTED_SUBREDDIT_NAMES, subredditNameList);
                 } else {
-                    returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_NAME, subredditData.getName());
-                    returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_ICON_URL, subredditData.getIconUrl());
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME, subredditData.getName());
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON, subredditData.getIconUrl());
                 }
                 setResult(Activity.RESULT_OK, returnIntent);
             } else {
@@ -287,34 +297,50 @@ public class SearchActivity extends BaseActivity {
         });
 
         if (savedInstanceState != null) {
-            searchInSubredditOrUserName = savedInstanceState.getString(SUBREDDIT_NAME_STATE);
-            searchInIsUser = savedInstanceState.getBoolean(SUBREDDIT_IS_USER_STATE);
+            searchInSubredditOrUserName = savedInstanceState.getString(SEARCH_IN_SUBREDDIT_OR_NAME_STATE);
+            searchInThingType = savedInstanceState.getInt(SEARCH_IN_THING_TYPE_STATE);
+            searchInMultiReddit = savedInstanceState.getParcelable(SEARCH_IN_MULTIREDDIT_STATE);
 
-            if (searchInSubredditOrUserName == null) {
-                binding.subredditNameTextViewSearchActivity.setText(R.string.all_subreddits);
-            } else {
-                binding.subredditNameTextViewSearchActivity.setText(searchInSubredditOrUserName);
-            }
+            setSearchInThingText();
         } else {
             query = getIntent().getStringExtra(EXTRA_QUERY);
+            searchInSubredditOrUserName = getIntent().getStringExtra(EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME);
+            searchInMultiReddit = getIntent().getParcelableExtra(EXTRA_SEARCH_IN_MULTIREDDIT);
+            searchInThingType = getIntent().getIntExtra(EXTRA_SEARCH_IN_THING_TYPE, SelectThingReturnKey.THING_TYPE.SUBREDDIT);
+            if (searchInSubredditOrUserName != null) {
+                binding.subredditNameTextViewSearchActivity.setText(searchInSubredditOrUserName);
+            } else if (searchInMultiReddit != null) {
+                binding.subredditNameTextViewSearchActivity.setText(searchInMultiReddit.getDisplayName());
+            }
         }
         bindView();
 
-        if (searchOnlySubreddits || searchOnlyUsers) {
+        requestThingSelectionForCurrentActivityLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            Intent returnIntent = result.getData();
+            if (returnIntent == null || returnIntent.getExtras() == null) {
+                return;
+            }
+
+            searchInSubredditOrUserName = returnIntent.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME);
+            searchInMultiReddit = returnIntent.getParcelableExtra(SelectThingReturnKey.RETRUN_EXTRA_MULTIREDDIT);
+            searchInThingType = returnIntent.getIntExtra(SelectThingReturnKey.RETURN_EXTRA_THING_TYPE, SelectThingReturnKey.THING_TYPE.SUBREDDIT);
+
+            setSearchInThingText();
+        });
+
+        requestThingSelectionForAnotherActivityLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            setResult(RESULT_OK, result.getData());
+            finish();
+        });
+
+        if (searchOnlySubreddits || searchOnlyUsers || searchSubredditsAndUsers) {
             binding.subredditNameRelativeLayoutSearchActivity.setVisibility(View.GONE);
         } else {
             binding.subredditNameRelativeLayoutSearchActivity.setOnClickListener(view -> {
-                Intent intent = new Intent(this, SubredditSelectionActivity.class);
-                intent.putExtra(SubredditSelectionActivity.EXTRA_EXTRA_CLEAR_SELECTION, true);
-                startActivityForResult(intent, SUBREDDIT_SELECTION_REQUEST_CODE);
+                Intent intent = new Intent(this, SubscribedThingListingActivity.class);
+                intent.putExtra(SubscribedThingListingActivity.EXTRA_THING_SELECTION_MODE, true);
+                requestThingSelectionForCurrentActivityLauncher.launch(intent);
             });
-        }
-
-        Intent intent = getIntent();
-        if (intent.hasExtra(EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME)) {
-            searchInSubredditOrUserName = intent.getStringExtra(EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME);
-            binding.subredditNameTextViewSearchActivity.setText(searchInSubredditOrUserName);
-            searchInIsUser = intent.getBooleanExtra(EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, false);
         }
     }
 
@@ -324,7 +350,11 @@ public class SearchActivity extends BaseActivity {
                 @Override
                 public void onClick(RecentSearchQuery recentSearchQuery) {
                     searchInSubredditOrUserName = recentSearchQuery.getSearchInSubredditOrUserName();
-                    searchInIsUser = recentSearchQuery.isSearchInIsUser();
+                    searchInMultiReddit = MultiReddit.getDummyMultiReddit(recentSearchQuery.getMultiRedditPath());
+                    if (searchInMultiReddit != null && recentSearchQuery.getMultiRedditDisplayName() != null) {
+                        searchInMultiReddit.setDisplayName(recentSearchQuery.getMultiRedditDisplayName());
+                    }
+                    searchInThingType = recentSearchQuery.getSearchInThingType();
                     search(recentSearchQuery.getSearchQuery());
                 }
 
@@ -409,15 +439,35 @@ public class SearchActivity extends BaseActivity {
             intent.putExtra(SearchUsersResultActivity.EXTRA_QUERY, query);
             intent.putExtra(SearchUsersResultActivity.EXTRA_IS_MULTI_SELECTION, getIntent().getBooleanExtra(EXTRA_IS_MULTI_SELECTION, false));
             startActivityForResult(intent, USER_SEARCH_REQUEST_CODE);
+        } else if (searchSubredditsAndUsers) {
+            Intent intent = new Intent(this, SearchResultActivity.class);
+            intent.putExtra(SearchResultActivity.EXTRA_QUERY, query);
+            intent.putExtra(SearchResultActivity.EXTRA_SHOULD_RETURN_SUBREDDIT_AND_USER_NAME, true);
+            requestThingSelectionForAnotherActivityLauncher.launch(intent);
         } else {
             Intent intent = new Intent(SearchActivity.this, SearchResultActivity.class);
             intent.putExtra(SearchResultActivity.EXTRA_QUERY, query);
-            if (searchInSubredditOrUserName != null) {
-                intent.putExtra(SearchResultActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, searchInSubredditOrUserName);
-                intent.putExtra(SearchResultActivity.EXTRA_SEARCH_IN_SUBREDDIT_IS_USER, searchInIsUser);
-            }
+            intent.putExtra(SearchResultActivity.EXTRA_SEARCH_IN_SUBREDDIT_OR_USER_NAME, searchInSubredditOrUserName);
+            intent.putExtra(SearchResultActivity.EXTRA_SEARCH_IN_MULTIREDDIT, searchInMultiReddit);
+            intent.putExtra(SearchResultActivity.EXTRA_SEARCH_IN_THING_TYPE, searchInThingType);
             startActivity(intent);
             finish();
+        }
+    }
+
+    private void setSearchInThingText() {
+        switch (searchInThingType) {
+            case SelectThingReturnKey.THING_TYPE.SUBREDDIT:
+            case SelectThingReturnKey.THING_TYPE.USER:
+                if (searchInSubredditOrUserName == null) {
+                    binding.subredditNameTextViewSearchActivity.setText(R.string.all_subreddits);
+                } else {
+                    binding.subredditNameTextViewSearchActivity.setText(searchInSubredditOrUserName);
+                }
+                break;
+            case SelectThingReturnKey.THING_TYPE.MULTIREDDIT:
+                binding.subredditNameTextViewSearchActivity.setText(searchInMultiReddit.getDisplayName());
+
         }
     }
 
@@ -477,24 +527,14 @@ public class SearchActivity extends BaseActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (resultCode == RESULT_OK && data != null) {
-            if (requestCode == SUBREDDIT_SELECTION_REQUEST_CODE) {
-                searchInSubredditOrUserName = data.getStringExtra(SubredditSelectionActivity.EXTRA_RETURN_SUBREDDIT_NAME);
-                searchInIsUser = data.getBooleanExtra(SubredditSelectionActivity.EXTRA_RETURN_SUBREDDIT_IS_USER, false);
-
-                if (searchInSubredditOrUserName == null) {
-                    binding.subredditNameTextViewSearchActivity.setText(R.string.all_subreddits);
-                } else {
-                    binding.subredditNameTextViewSearchActivity.setText(searchInSubredditOrUserName);
-                }
-            } else if (requestCode == SUBREDDIT_SEARCH_REQUEST_CODE) {
+            if (requestCode == SUBREDDIT_SEARCH_REQUEST_CODE) {
                 Intent returnIntent = new Intent();
                 if (getIntent().getBooleanExtra(EXTRA_IS_MULTI_SELECTION, false)) {
                     returnIntent.putStringArrayListExtra(RETURN_EXTRA_SELECTED_SUBREDDIT_NAMES, data.getStringArrayListExtra(SearchSubredditsResultActivity.RETURN_EXTRA_SELECTED_SUBREDDIT_NAMES));
                 } else {
-                    String name = data.getStringExtra(SearchSubredditsResultActivity.EXTRA_RETURN_SUBREDDIT_NAME);
-                    String iconUrl = data.getStringExtra(SearchSubredditsResultActivity.EXTRA_RETURN_SUBREDDIT_ICON_URL);
-                    returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_NAME, name);
-                    returnIntent.putExtra(EXTRA_RETURN_SUBREDDIT_ICON_URL, iconUrl);
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME, data.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME));
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON, data.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON));
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_THING_TYPE, SelectThingReturnKey.THING_TYPE.SUBREDDIT);
                 }
                 setResult(Activity.RESULT_OK, returnIntent);
                 finish();
@@ -503,10 +543,9 @@ public class SearchActivity extends BaseActivity {
                 if (getIntent().getBooleanExtra(EXTRA_IS_MULTI_SELECTION, false)) {
                     returnIntent.putStringArrayListExtra(RETURN_EXTRA_SELECTED_USERNAMES, data.getStringArrayListExtra(SearchUsersResultActivity.RETURN_EXTRA_SELECTED_USERNAMES));
                 } else {
-                    String username = data.getStringExtra(SearchUsersResultActivity.EXTRA_RETURN_USER_NAME);
-                    String iconUrl = data.getStringExtra(SearchUsersResultActivity.EXTRA_RETURN_USER_ICON_URL);
-                    returnIntent.putExtra(EXTRA_RETURN_USER_NAME, username);
-                    returnIntent.putExtra(EXTRA_RETURN_USER_ICON_URL, iconUrl);
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME, data.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_NAME));
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON, data.getStringExtra(SelectThingReturnKey.RETURN_EXTRA_SUBREDDIT_OR_USER_ICON));
+                    returnIntent.putExtra(SelectThingReturnKey.RETURN_EXTRA_THING_TYPE, SelectThingReturnKey.THING_TYPE.USER);
                 }
                 setResult(Activity.RESULT_OK, returnIntent);
                 finish();
@@ -531,8 +570,9 @@ public class SearchActivity extends BaseActivity {
     @Override
     public void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        outState.putString(SUBREDDIT_NAME_STATE, searchInSubredditOrUserName);
-        outState.putBoolean(SUBREDDIT_IS_USER_STATE, searchInIsUser);
+        outState.putString(SEARCH_IN_SUBREDDIT_OR_NAME_STATE, searchInSubredditOrUserName);
+        outState.putInt(SEARCH_IN_THING_TYPE_STATE, searchInThingType);
+        outState.putParcelable(SEARCH_IN_MULTIREDDIT_STATE, searchInMultiReddit);
     }
 
     @Override

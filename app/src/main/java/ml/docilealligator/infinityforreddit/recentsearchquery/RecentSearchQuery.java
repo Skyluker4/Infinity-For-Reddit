@@ -6,6 +6,7 @@ import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
 
+import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.account.Account;
 
 @Entity(tableName = "recent_search_queries", primaryKeys = {"username", "search_query"},
@@ -21,17 +22,28 @@ public class RecentSearchQuery {
     @Nullable
     @ColumnInfo(name = "search_in_subreddit_or_user_name")
     private String searchInSubredditOrUserName;
-    @ColumnInfo(name = "search_in_is_user")
-    private boolean searchInIsUser;
+    @Nullable
+    @ColumnInfo(name = "search_in_multireddit_path")
+    private String multiRedditPath;
+    @Nullable
+    @ColumnInfo(name = "search_in_multireddit_display_name")
+    private String multiRedditDisplayName;
+    @SelectThingReturnKey.THING_TYPE
+    @ColumnInfo(name = "search_in_thing_type")
+    private int searchInThingType;
     @ColumnInfo(name = "time")
     private long time;
 
     public RecentSearchQuery(@NonNull String username, @NonNull String searchQuery,
-                             @Nullable String searchInSubredditOrUserName, boolean searchInIsUser) {
+                             @Nullable String searchInSubredditOrUserName, @Nullable String multiRedditPath,
+                             @Nullable String multiRedditDisplayName,
+                             @SelectThingReturnKey.THING_TYPE int searchInThingType) {
         this.username = username;
         this.searchQuery = searchQuery;
         this.searchInSubredditOrUserName = searchInSubredditOrUserName;
-        this.searchInIsUser = searchInIsUser;
+        this.searchInThingType = searchInThingType;
+        this.multiRedditPath = multiRedditPath;
+        this.multiRedditDisplayName = multiRedditDisplayName;
         this.time = System.currentTimeMillis();
     }
 
@@ -62,12 +74,31 @@ public class RecentSearchQuery {
         this.searchInSubredditOrUserName = searchInSubredditOrUserName;
     }
 
-    public boolean isSearchInIsUser() {
-        return searchInIsUser;
+    @Nullable
+    public String getMultiRedditPath() {
+        return multiRedditPath;
     }
 
-    public void setSearchInIsUser(boolean searchInIsUser) {
-        this.searchInIsUser = searchInIsUser;
+    public void setMultiRedditPath(@Nullable String multiRedditPath) {
+        this.multiRedditPath = multiRedditPath;
+    }
+
+    @Nullable
+    public String getMultiRedditDisplayName() {
+        return multiRedditDisplayName;
+    }
+
+    public void setMultiRedditDisplayName(@Nullable String multiRedditDisplayName) {
+        this.multiRedditDisplayName = multiRedditDisplayName;
+    }
+
+    @SelectThingReturnKey.THING_TYPE
+    public int getSearchInThingType() {
+        return searchInThingType;
+    }
+
+    public void setSearchInThingType(@SelectThingReturnKey.THING_TYPE int searchInThingType) {
+        this.searchInThingType = searchInThingType;
     }
 
     public long getTime() {
