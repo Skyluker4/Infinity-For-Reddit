@@ -68,7 +68,7 @@
                         android:paddingTop="8dp"
                         android:paddingEnd="16dp"
                         android:paddingBottom="8dp"
-                        android:text="@string/post_filter_post_type_explanation"
+                        android:text="@string/post_filter_name_explanation"
                         android:textColor="?attr/primaryTextColor"
                         android:textSize="?attr/font_default" />
 
@@ -650,7 +650,8 @@
                             android:padding="16dp"
                             android:background="?actionBarItemBackground"
                             android:clickable="true"
-                            android:focusable="true" />
+                            android:focusable="true"
+                            android:contentDescription="@string/content_description_post_filter_add_subreddit" />
 
                     </LinearLayout>
 
@@ -700,7 +701,8 @@
                             android:padding="16dp"
                             android:background="?actionBarItemBackground"
                             android:clickable="true"
-                            android:focusable="true" />
+                            android:focusable="true"
+                            android:contentDescription="@string/content_description_post_filter_add_user" />
 
                     </LinearLayout>
 

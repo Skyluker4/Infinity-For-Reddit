@@ -322,6 +322,9 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
                 }
                 break;
         }
+
+        setOtherActivitiesFabContentDescription(binding.fabSearchResultActivity, fabOption);
+
         binding.fabSearchResultActivity.setOnClickListener(view -> {
             switch (fabOption) {
                 case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_FAB_REFRESH: {
