@@ -10,6 +10,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <TextView
             android:id="@+id/theme_name_text_view_custom_theme_options_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -34,7 +38,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_edit_24dp"
+            android:drawableStart="@drawable/ic_edit_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -53,7 +57,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_edit_24dp"
+            android:drawableStart="@drawable/ic_edit_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -72,7 +76,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_share_24dp"
+            android:drawableStart="@drawable/ic_share_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -91,7 +95,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_delete_24dp"
+            android:drawableStart="@drawable/ic_delete_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"

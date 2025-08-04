@@ -2,6 +2,11 @@ package ml.docilealligator.infinityforreddit;
 
 import android.content.SharedPreferences;
 
+import androidx.annotation.NonNull;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Named;
@@ -10,11 +15,18 @@ import javax.inject.Singleton;
 import dagger.Module;
 import dagger.Provides;
 import ml.docilealligator.infinityforreddit.apis.StreamableAPI;
+import ml.docilealligator.infinityforreddit.network.AccessTokenAuthenticator;
+import ml.docilealligator.infinityforreddit.network.RedgifsAccessTokenAuthenticator;
+import ml.docilealligator.infinityforreddit.network.ServerAccessTokenAuthenticator;
 import ml.docilealligator.infinityforreddit.network.SortTypeConverterFactory;
 import ml.docilealligator.infinityforreddit.utils.APIUtils;
+import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import okhttp3.ConnectionPool;
+import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import retrofit2.Retrofit;
 import retrofit2.adapter.guava.GuavaCallAdapterFactory;
 import retrofit2.converter.scalars.ScalarsConverterFactory;
@@ -25,12 +37,25 @@ abstract class NetworkModule {
     @Provides
     @Named("base")
     @Singleton
-    static OkHttpClient provideBaseOkhttp() {
-        return new OkHttpClient.Builder()
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
+    static OkHttpClient provideBaseOkhttp(@Named("proxy") SharedPreferences mProxySharedPreferences) {
+        boolean proxyEnabled = mProxySharedPreferences.getBoolean(SharedPreferencesUtils.PROXY_ENABLED, false);
+
+        var builder =  new OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS);
+
+        if (proxyEnabled) {
+            Proxy.Type proxyType = Proxy.Type.valueOf(mProxySharedPreferences.getString(SharedPreferencesUtils.PROXY_TYPE, "HTTP"));
+            String proxyHost = mProxySharedPreferences.getString(SharedPreferencesUtils.PROXY_HOSTNAME, "127.0.0.1");
+            int proxyPort = Integer.parseInt(mProxySharedPreferences.getString(SharedPreferencesUtils.PROXY_PORT, "1080"));
+
+            InetSocketAddress proxyAddr = new InetSocketAddress(proxyHost, proxyPort);
+            Proxy proxy = new Proxy(proxyType, proxyAddr);
+            builder.proxy(proxy);
+        }
+
+        return builder.build();
     }
 
     @Provides
@@ -72,12 +97,67 @@ abstract class NetworkModule {
     @Singleton
     static OkHttpClient provideOkHttpClient(@Named("base") OkHttpClient httpClient,
                                             @Named("base") Retrofit retrofit,
-                                            RedditDataRoomDatabase accountRoomDatabase,
+                                            RedditDataRoomDatabase redditDataRoomDatabase,
                                             @Named("current_account") SharedPreferences currentAccountSharedPreferences,
                                             ConnectionPool connectionPool) {
         return httpClient.newBuilder()
-                .authenticator(new AccessTokenAuthenticator(retrofit, accountRoomDatabase, currentAccountSharedPreferences))
+                .authenticator(new AccessTokenAuthenticator(retrofit, redditDataRoomDatabase, currentAccountSharedPreferences))
                 .connectionPool(connectionPool)
+                .build();
+    }
+
+    @Provides
+    @Named("server")
+    @Singleton
+    static OkHttpClient provideServerOkHttpClient(@Named("base") OkHttpClient httpClient,
+                                            RedditDataRoomDatabase redditDataRoomDatabase,
+                                            @Named("current_account") SharedPreferences currentAccountSharedPreferences,
+                                            ConnectionPool connectionPool) {
+        return httpClient.newBuilder()
+                .authenticator(new ServerAccessTokenAuthenticator(redditDataRoomDatabase, currentAccountSharedPreferences))
+                .connectionPool(connectionPool)
+                .build();
+    }
+
+    @Provides
+    @Named("media3")
+    @Singleton
+    static OkHttpClient provideMedia3OkHttpClient(@Named("base") OkHttpClient httpClient,
+                                            ConnectionPool connectionPool) {
+        return httpClient.newBuilder()
+                .connectionPool(connectionPool)
+                .followRedirects(false)
+                .addInterceptor(new Interceptor() {
+                    @NonNull
+                    @Override
+                    public Response intercept(@NonNull Chain chain) throws IOException {
+                        Request request = chain.request();
+                        Response response = chain.proceed(request);
+
+                        int redirectCount = 0;
+                        while (isRedirect(response.code()) && redirectCount < 5) {
+                            String location = response.header("Location");
+                            if (location == null) break;
+
+                            HttpUrl newUrl = response.request().url().resolve(location);
+                            if (newUrl == null) break;
+
+                            request = request.newBuilder()
+                                    .url(newUrl)
+                                    .build();
+
+                            response.close(); // Close the previous response before continuing
+                            response = chain.proceed(request);
+                            redirectCount++;
+                        }
+
+                        return response;
+                    }
+
+                    private boolean isRedirect(int code) {
+                        return code == 301 || code == 302 || code == 303 || code == 307 || code == 308;
+                    }
+                })
                 .build();
     }
 
@@ -156,24 +236,6 @@ abstract class NetworkModule {
     }
 
     @Provides
-    @Named("pushshift")
-    @Singleton
-    static Retrofit providePushshiftRetrofit(@Named("base") Retrofit retrofit) {
-        return retrofit.newBuilder()
-                .baseUrl(APIUtils.PUSHSHIFT_API_BASE_URI)
-                .build();
-    }
-
-    @Provides
-    @Named("reveddit")
-    @Singleton
-    static Retrofit provideRevedditRetrofit(@Named("base") Retrofit retrofit) {
-        return retrofit.newBuilder()
-                .baseUrl(APIUtils.REVEDDIT_API_BASE_URI)
-                .build();
-    }
-
-    @Provides
     @Named("vReddIt")
     @Singleton
     static Retrofit provideVReddItRetrofit(@Named("base") Retrofit retrofit) {
@@ -194,9 +256,10 @@ abstract class NetworkModule {
     @Provides
     @Named("online_custom_themes")
     @Singleton
-    static Retrofit provideOnlineCustomThemesRetrofit(@Named("base") Retrofit retrofit) {
+    static Retrofit provideOnlineCustomThemesRetrofit(@Named("base") Retrofit retrofit, @Named("server") OkHttpClient httpClient) {
         return retrofit.newBuilder()
-                .baseUrl(APIUtils.ONLINE_CUSTOM_THEMES_API_BASE_URI)
+                .baseUrl(APIUtils.SERVER_API_BASE_URI)
+                .client(httpClient)
                 .build();
     }
 

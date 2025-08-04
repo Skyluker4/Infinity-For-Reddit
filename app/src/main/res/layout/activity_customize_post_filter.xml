@@ -34,8 +34,10 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/content_wrapper_view_customize_post_filter_activity"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -149,7 +151,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/post_type_text_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -180,7 +182,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/post_type_link_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -211,7 +213,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/post_type_image_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -242,7 +244,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/post_type_gif_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -273,7 +275,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/post_type_video_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -304,7 +306,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/post_type_gallery_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -340,7 +342,7 @@
                         android:paddingBottom="8dp"
                         android:paddingStart="16dp"
                         android:paddingEnd="16dp"
-                        android:text="@string/post_filter_only_nsfw_spoiler_explanation"
+                        android:text="@string/post_filter_only_sensitive_spoiler_explanation"
                         android:textSize="?attr/font_default"
                         android:textColor="?attr/primaryTextColor"
                         android:fontFamily="?attr/font_family" />
@@ -364,11 +366,11 @@
                             android:layout_weight="1"
                             android:layout_gravity="center_vertical"
                             android:drawablePadding="32dp"
-                            android:text="@string/only_nsfw"
+                            android:text="@string/only_sensitive_content"
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/only_nsfw_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -399,7 +401,7 @@
                             android:fontFamily="?attr/font_default"
                             android:textSize="?attr/font_default" />
 
-                        <com.google.android.material.materialswitch.MaterialSwitch
+                        <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                             android:id="@+id/only_spoiler_switch_customize_post_filter_activity"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"

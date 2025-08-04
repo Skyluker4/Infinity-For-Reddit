@@ -1,7 +1,6 @@
 package ml.docilealligator.infinityforreddit.activities;
 
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.MenuItem;
@@ -11,26 +10,30 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
+import java.util.concurrent.Executor;
 
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
-import ml.docilealligator.infinityforreddit.FetchUserFlairs;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
-import ml.docilealligator.infinityforreddit.SelectUserFlair;
-import ml.docilealligator.infinityforreddit.UserFlair;
 import ml.docilealligator.infinityforreddit.adapters.UserFlairRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.LinearLayoutManagerBugFixed;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
 import ml.docilealligator.infinityforreddit.databinding.ActivitySelectUserFlairBinding;
+import ml.docilealligator.infinityforreddit.user.FetchUserFlairs;
+import ml.docilealligator.infinityforreddit.user.SelectUserFlair;
+import ml.docilealligator.infinityforreddit.user.UserFlair;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 import retrofit2.Retrofit;
@@ -51,6 +54,8 @@ public class SelectUserFlairActivity extends BaseActivity implements ActivityToo
     SharedPreferences mCurrentAccountSharedPreferences;
     @Inject
     CustomThemeWrapper mCustomThemeWrapper;
+    @Inject
+    Executor mExecutor;
     private LinearLayoutManagerBugFixed mLinearLayoutManager;
     private ArrayList<UserFlair> mUserFlairs;
     private String mSubredditName;
@@ -61,7 +66,7 @@ public class SelectUserFlairActivity extends BaseActivity implements ActivityToo
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
 
@@ -70,8 +75,36 @@ public class SelectUserFlairActivity extends BaseActivity implements ActivityToo
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutSelectUserFlairActivity);
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutSelectUserFlairActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    setMargins(binding.toolbarSelectUserFlairActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.recyclerViewSelectUserFlairActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         if (mSharedPreferences.getBoolean(SharedPreferencesUtils.SWIPE_RIGHT_TO_GO_BACK, true)) {
@@ -93,7 +126,7 @@ public class SelectUserFlairActivity extends BaseActivity implements ActivityToo
 
     private void bindView() {
         if (mUserFlairs == null) {
-            FetchUserFlairs.fetchUserFlairsInSubreddit(mOauthRetrofit, accessToken, mSubredditName,
+            FetchUserFlairs.fetchUserFlairsInSubreddit(mExecutor, mHandler, mOauthRetrofit, accessToken, mSubredditName,
                     new FetchUserFlairs.FetchUserFlairsInSubredditListener() {
                         @Override
                         public void fetchSuccessful(ArrayList<UserFlair> userFlairs) {
@@ -158,7 +191,7 @@ public class SelectUserFlairActivity extends BaseActivity implements ActivityToo
     }
 
     private void selectUserFlair(@Nullable UserFlair userFlair) {
-        SelectUserFlair.selectUserFlair(mOauthRetrofit, accessToken, userFlair, mSubredditName, accountName,
+        SelectUserFlair.selectUserFlair(mExecutor, mHandler, mOauthRetrofit, accessToken, userFlair, mSubredditName, accountName,
                 new SelectUserFlair.SelectUserFlairListener() {
                     @Override
                     public void success() {

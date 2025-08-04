@@ -1,6 +1,5 @@
 package ml.docilealligator.infinityforreddit.activities;
 
-import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -8,6 +7,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.loadingindicator.LoadingIndicator;
 
 import app.futured.hauler.HaulerView;
 import app.futured.hauler.LockableNestedScrollView;
@@ -21,16 +21,22 @@ public class ViewVideoActivityBindingAdapter {
     @Nullable
     private ActivityViewVideoZoomableBinding zoomableBinding;
 
-    private MaterialButton muteButton;
-    private MaterialButton hdButton;
-    private BottomAppBar bottomAppBar;
-    private TextView titleTextView;
-    private MaterialButton backButton;
-    private MaterialButton downloadButton;
-    private MaterialButton playbackSpeedButton;
+    private final MaterialButton playPauseButton;
+    private final MaterialButton forwardButton;
+    private final MaterialButton rewindButton;
+    private final MaterialButton muteButton;
+    private final MaterialButton hdButton;
+    private final BottomAppBar bottomAppBar;
+    private final TextView titleTextView;
+    private final MaterialButton backButton;
+    private final MaterialButton downloadButton;
+    private final MaterialButton playbackSpeedButton;
 
     public ViewVideoActivityBindingAdapter(ActivityViewVideoBinding binding) {
         this.binding = binding;
+        playPauseButton = binding.getRoot().findViewById(R.id.exo_play_pause_button_exo_playback_control_view);
+        forwardButton = binding.getRoot().findViewById(R.id.exo_ffwd);
+        rewindButton = binding.getRoot().findViewById(R.id.exo_rew);
         muteButton = binding.getRoot().findViewById(R.id.mute_exo_playback_control_view);
         hdButton = binding.getRoot().findViewById(R.id.hd_exo_playback_control_view);
         bottomAppBar = binding.getRoot().findViewById(R.id.bottom_navigation_exo_playback_control_view);
@@ -42,6 +48,9 @@ public class ViewVideoActivityBindingAdapter {
 
     public ViewVideoActivityBindingAdapter(ActivityViewVideoZoomableBinding binding) {
         zoomableBinding = binding;
+        playPauseButton = binding.getRoot().findViewById(R.id.exo_play_pause_button_exo_playback_control_view);
+        forwardButton = binding.getRoot().findViewById(R.id.exo_ffwd);
+        rewindButton = binding.getRoot().findViewById(R.id.exo_rew);
         muteButton = binding.getRoot().findViewById(R.id.mute_exo_playback_control_view);
         hdButton = binding.getRoot().findViewById(R.id.hd_exo_playback_control_view);
         bottomAppBar = binding.getRoot().findViewById(R.id.bottom_navigation_exo_playback_control_view);
@@ -59,12 +68,24 @@ public class ViewVideoActivityBindingAdapter {
         return binding == null ? zoomableBinding.coordinatorLayoutViewVideoActivity : binding.coordinatorLayoutViewVideoActivity;
     }
 
-    public ProgressBar getProgressBar() {
+    public LoadingIndicator getLoadingIndicator() {
         return binding == null ? zoomableBinding.progressBarViewVideoActivity : binding.progressBarViewVideoActivity;
     }
 
+    public MaterialButton getPlayPauseButton() {
+        return playPauseButton;
+    }
+
+    public MaterialButton getForwardButton() {
+        return forwardButton;
+    }
+
+    public MaterialButton getRewindButton() {
+        return rewindButton;
+    }
+
     public MaterialButton getMuteButton() {
-        return getRoot().findViewById(R.id.mute_exo_playback_control_view);
+        return muteButton;
     }
 
     public MaterialButton getHdButton() {

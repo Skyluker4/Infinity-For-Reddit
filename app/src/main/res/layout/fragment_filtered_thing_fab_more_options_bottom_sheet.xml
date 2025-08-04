@@ -11,6 +11,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <TextView
             android:id="@+id/filter_text_view_filtered_thing_fab_more_options_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -24,7 +28,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            app:drawableStartCompat="@drawable/ic_filter_24dp"
+            app:drawableStartCompat="@drawable/ic_filter_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -43,7 +47,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            app:drawableStartCompat="@drawable/ic_hide_read_posts_24dp"
+            app:drawableStartCompat="@drawable/ic_hide_read_posts_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"

@@ -20,6 +20,10 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.inputmethod.EditorInfoCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.GridLayoutManager;
@@ -41,7 +45,7 @@ import javax.inject.Named;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
+import ml.docilealligator.infinityforreddit.thing.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.SearchActivityRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.adapters.SubredditAutocompleteRecyclerViewAdapter;
@@ -124,7 +128,7 @@ public class SearchActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
 
@@ -137,6 +141,38 @@ public class SearchActivity extends BaseActivity {
 
         if (mSharedPreferences.getBoolean(SharedPreferencesUtils.SWIPE_RIGHT_TO_GO_BACK, true)) {
             Slidr.attach(this);
+        }
+
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutSearchActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    setMargins(binding.toolbar,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.nestedScrollViewSearchActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbar);
@@ -350,14 +386,19 @@ public class SearchActivity extends BaseActivity {
         if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
             adapter = new SearchActivityRecyclerViewAdapter(this, mCustomThemeWrapper, new SearchActivityRecyclerViewAdapter.ItemOnClickListener() {
                 @Override
-                public void onClick(RecentSearchQuery recentSearchQuery) {
-                    searchInSubredditOrUserName = recentSearchQuery.getSearchInSubredditOrUserName();
-                    searchInMultiReddit = MultiReddit.getDummyMultiReddit(recentSearchQuery.getMultiRedditPath());
-                    if (searchInMultiReddit != null && recentSearchQuery.getMultiRedditDisplayName() != null) {
-                        searchInMultiReddit.setDisplayName(recentSearchQuery.getMultiRedditDisplayName());
+                public void onClick(RecentSearchQuery recentSearchQuery, boolean searchImmediately) {
+                    if (searchImmediately) {
+                        searchInSubredditOrUserName = recentSearchQuery.getSearchInSubredditOrUserName();
+                        searchInMultiReddit = MultiReddit.getDummyMultiReddit(recentSearchQuery.getMultiRedditPath());
+                        if (searchInMultiReddit != null && recentSearchQuery.getMultiRedditDisplayName() != null) {
+                            searchInMultiReddit.setDisplayName(recentSearchQuery.getMultiRedditDisplayName());
+                        }
+                        searchInThingType = recentSearchQuery.getSearchInThingType();
+                        search(recentSearchQuery.getSearchQuery());
+                    } else {
+                        binding.searchEditTextSearchActivity.setText(recentSearchQuery.getSearchQuery());
+                        binding.searchEditTextSearchActivity.setSelection(recentSearchQuery.getSearchQuery().length());
                     }
-                    searchInThingType = recentSearchQuery.getSearchInThingType();
-                    search(recentSearchQuery.getSearchQuery());
                 }
 
                 @Override

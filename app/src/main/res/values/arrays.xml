@@ -46,6 +46,7 @@
         <item>@string/post_layout_card_2</item>
         <item>@string/post_layout_card_3</item>
         <item>@string/post_layout_compact</item>
+        <item>@string/post_layout_compact_2</item>
         <item>@string/post_layout_gallery</item>
     </string-array>
 
@@ -54,6 +55,7 @@
         <item>3</item>
         <item>4</item>
         <item>1</item>
+        <item>5</item>
         <item>2</item>
     </string-array>
 
@@ -64,6 +66,7 @@
         <item>@string/post_layout_card_3</item>
         <item>@string/post_layout_compact</item>
         <item>@string/post_layout_gallery</item>
+        <item>@string/post_layout_compact_2</item>
     </string-array>
 
     <string-array name="settings_default_link_post_layout_values">
@@ -73,6 +76,7 @@
         <item>4</item>
         <item>1</item>
         <item>2</item>
+        <item>5</item>
     </string-array>
 
     <string-array name="settings_video_autoplay">
@@ -698,6 +702,14 @@
         <item>@string/save_locally_and_online</item>
     </string-array>
 
+    <string-array name="save_theme_options_anonymous_included">
+        <item>@string/save_locally</item>
+        <item>@string/save_online</item>
+        <item>@string/save_online_anonymous</item>
+        <item>@string/save_locally_and_online</item>
+        <item>@string/save_locally_and_online_anonymous</item>
+    </string-array>
+
     <string-array name="settings_embedded_media_type">
         <item>@string/all</item>
         <item>@string/image_and_gif</item>
@@ -723,6 +735,42 @@
     <string-array name="comment_filter_display_mode">
         <item>@string/comment_filter_display_mode_remove_comments</item>
         <item>@string/comment_filter_display_mode_fully_collapse_comments</item>
+    </string-array>
+
+    <string-array name="settings_proxy_type">
+        <item>@string/proxy_http</item>
+        <item>@string/proxy_socks</item>
+        <item>@string/proxy_direct</item>
+    </string-array>
+
+    <string-array name="settings_proxy_type_values">
+        <item>HTTP</item>
+        <item>SOCKS</item>
+        <item>DIRECT</item>
+    </string-array>
+
+    <string-array name="settings_long_press_post_non_media_area_action">
+        <item>@string/none</item>
+        <item>@string/show_post_options</item>
+        <item>@string/preview_in_fullscreen</item>
+    </string-array>
+
+    <string-array name="settings_long_press_post_non_media_area_action_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
+
+    <string-array name="settings_long_press_post_media_action">
+        <item>@string/none</item>
+        <item>@string/show_post_options</item>
+        <item>@string/preview_in_fullscreen</item>
+    </string-array>
+
+    <string-array name="settings_long_press_post_media_action_values">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
     </string-array>
 
 </resources>

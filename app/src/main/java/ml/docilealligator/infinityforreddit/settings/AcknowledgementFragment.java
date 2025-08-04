@@ -9,6 +9,10 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
 import java.util.ArrayList;
@@ -71,9 +75,6 @@ public class AcknowledgementFragment extends Fragment {
         acknowledgements.add(new Acknowledgement("Customized and Expandable TextView",
                 "Simple library to change the Textview as rectangle, circle and square shapes",
                 Uri.parse("https://github.com/Rajagopalr3/CustomizedTextView")));
-        acknowledgements.add(new Acknowledgement("Rounded Bottom Sheet",
-                "Bottom sheet with rounded corners",
-                Uri.parse("https://github.com/Deishelon/RoundedBottomSheet")));
         acknowledgements.add(new Acknowledgement("Bridge",
                 "A library for avoiding TransactionTooLargeException during state saving and restoration",
                 Uri.parse("https://github.com/livefront/bridge")));
@@ -119,6 +120,21 @@ public class AcknowledgementFragment extends Fragment {
         binding.getRoot().setAdapter(adapter);
 
         binding.getRoot().setBackgroundColor(activity.customThemeWrapper.getBackgroundColor());
+
+        if (activity.isImmersiveInterface()) {
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+                    binding.getRoot().setPadding(allInsets.left, 0, allInsets.right, allInsets.bottom);
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
+        }
 
         return binding.getRoot();
     }

@@ -12,6 +12,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <TextView
             android:id="@+id/card_layout_text_view_post_layout_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -72,6 +76,22 @@
             android:paddingEnd="32dp"
             android:paddingBottom="16dp"
             android:text="@string/post_layout_compact"
+            android:textColor="?attr/primaryTextColor"
+            android:textSize="?attr/font_default"
+            android:fontFamily="?attr/font_family" />
+
+        <TextView
+            android:id="@+id/compact_layout_2_text_view_post_layout_bottom_sheet_fragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingStart="32dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="32dp"
+            android:paddingBottom="16dp"
+            android:text="@string/post_layout_compact_2"
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family" />

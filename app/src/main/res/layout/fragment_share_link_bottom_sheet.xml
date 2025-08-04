@@ -10,6 +10,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <TextView
             android:id="@+id/post_link_text_view_share_link_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -37,7 +41,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_link"
+            android:drawableStart="@drawable/ic_link_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -56,11 +60,31 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_copy_24dp"
+            android:drawableStart="@drawable/ic_copy_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
             android:background="?attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/share_as_image_text_view_share_link_bottom_sheet_fragment"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:paddingTop="16dp"
+            android:paddingBottom="16dp"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:text="@string/share_as_image"
+            android:textColor="?attr/primaryTextColor"
+            android:textSize="?attr/font_default"
+            android:fontFamily="?attr/font_family"
+            android:drawableStart="@drawable/ic_image_day_night_24dp"
+            android:drawablePadding="48dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="?attr/selectableItemBackground"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/media_link_text_view_share_link_bottom_sheet_fragment"
@@ -89,7 +113,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_link"
+            android:drawableStart="@drawable/ic_link_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -108,7 +132,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_copy_24dp"
+            android:drawableStart="@drawable/ic_copy_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"

@@ -4,7 +4,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import java.util.Map;
 
-import ml.docilealligator.infinityforreddit.SortType;
+import ml.docilealligator.infinityforreddit.thing.SortType;
 import ml.docilealligator.infinityforreddit.utils.APIUtils;
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
@@ -161,7 +161,7 @@ public interface RedditAPI {
     @POST("{subredditNamePrefixed}/api/selectflair")
     Call<String> selectFlair(@Path("subredditNamePrefixed") String subredditName, @HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
 
-    @GET("/message/{where}.json?raw_json=1")
+    @GET("/message/{where}.json?raw_json=1&limit=100")
     Call<String> getMessages(@HeaderMap Map<String, String> headers, @Path("where") String where, @Query("after") String after);
 
     @FormUrlEncoded
@@ -422,4 +422,35 @@ public interface RedditAPI {
     @FormUrlEncoded
     @POST("/api/morechildren.json?raw_json=1&api_type=json")
     Call<String> moreChildrenOauth(@Field("link_id") String linkId, @Field("children") String children, @Field("sort") SortType.Type sort, @HeaderMap Map<String, String> headers);
+
+    @FormUrlEncoded
+    @POST("/api/sendreplies")
+    Call<String> toggleRepliesNotification(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
+
+    @GET("/api/user_data_by_account_ids.json")
+    Call<String> loadPartialUserData(@Query("ids") String commaSeparatedUserFullNames);
+
+    @FormUrlEncoded
+    @POST("/api/approve")
+    Call<String> approveThing(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
+
+    @FormUrlEncoded
+    @POST("/api/remove")
+    Call<String> removeThing(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
+
+    @FormUrlEncoded
+    @POST("/api/set_subreddit_sticky")
+    Call<String> toggleStickyPost(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
+
+    @FormUrlEncoded
+    @POST("/api/lock")
+    Call<String> lockThing(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
+
+    @FormUrlEncoded
+    @POST("/api/unlock")
+    Call<String> unLockThing(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
+
+    @FormUrlEncoded
+    @POST("/api/distinguish")
+    Call<String> toggleDistinguishedThing(@HeaderMap Map<String, String> headers, @FieldMap Map<String, String> params);
 }

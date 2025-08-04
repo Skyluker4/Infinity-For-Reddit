@@ -16,11 +16,12 @@ public class LoadUserData {
                                     Retrofit retrofit, LoadUserDataAsyncTaskListener loadUserDataAsyncTaskListener) {
         executor.execute(() -> {
             UserDao userDao = redditDataRoomDatabase.userDao();
-            if (userDao.getUserData(userName) != null) {
-                String iconImageUrl = userDao.getUserData(userName).getIconUrl();
+            UserData userData = userDao.getUserData(userName);
+            if (userData != null) {
+                String iconImageUrl = userData.getIconUrl();
                 handler.post(() -> loadUserDataAsyncTaskListener.loadUserDataSuccess(iconImageUrl));
             } else {
-                handler.post(() -> FetchUserData.fetchUserData(retrofit, userName, new FetchUserData.FetchUserDataListener() {
+                handler.post(() -> FetchUserData.fetchUserData(executor, handler, retrofit, userName, new FetchUserData.FetchUserDataListener() {
                     @Override
                     public void onFetchUserDataSuccess(UserData userData, int inboxCount) {
                         InsertUserData.insertUserData(executor, handler, redditDataRoomDatabase, userData,

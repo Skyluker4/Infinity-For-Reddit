@@ -11,6 +11,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <TextView
             android:id="@+id/edit_text_view_post_filter_usage_options_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -23,7 +27,7 @@
             android:paddingBottom="16dp"
             android:paddingStart="32dp"
             android:paddingEnd="32dp"
-            app:drawableStartCompat="@drawable/ic_edit_24dp"
+            app:drawableStartCompat="@drawable/ic_edit_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -41,7 +45,7 @@
             android:paddingBottom="16dp"
             android:paddingStart="32dp"
             android:paddingEnd="32dp"
-            app:drawableStartCompat="@drawable/ic_delete_24dp"
+            app:drawableStartCompat="@drawable/ic_delete_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"

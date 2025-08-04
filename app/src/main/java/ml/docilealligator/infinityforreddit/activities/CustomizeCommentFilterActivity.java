@@ -20,6 +20,10 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -73,7 +77,7 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
         binding = ActivityCustomizeCommentFilterBinding.inflate(getLayoutInflater());
@@ -81,8 +85,43 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutCustomizeCommentFilterActivity);
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutCustomizeCommentFilterActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets windowInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+                    Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+
+                    setMargins(binding.toolbarCustomizeCommentFilterActivity,
+                            windowInsets.left,
+                            windowInsets.top,
+                            windowInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.contentWrapperViewCustomizeCommentFilterActivity.setPadding(
+                            windowInsets.left,
+                            0,
+                            windowInsets.right,
+                            windowInsets.bottom
+                    );
+
+                    setMargins(binding.contentWrapperViewCustomizeCommentFilterActivity,
+                            BaseActivity.IGNORE_MARGIN,
+                            BaseActivity.IGNORE_MARGIN,
+                            BaseActivity.IGNORE_MARGIN,
+                            imeInsets.bottom);
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarCustomizeCommentFilterActivity);
@@ -182,14 +221,14 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
         int primaryIconColor = mCustomThemeWrapper.getPrimaryIconColor();
         int filledCardViewBackgroundColor = mCustomThemeWrapper.getFilledCardViewBackgroundColor();
 
-        binding.nameCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
-        binding.nameExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
+        binding.nameCardViewCustomizeCommentFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.nameExplanationTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.nameTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.nameTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.nameTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
 
-        binding.displayModeCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
-        binding.displayModeExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
+        binding.displayModeCardViewCustomizeCommentFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.displayModeExplanationTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.displayModeTitleTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.displayModeSpinnerCustomizeCommentFilterActivity.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -206,24 +245,25 @@ public class CustomizeCommentFilterActivity extends BaseActivity {
             }
         });
 
-        binding.excludeStringsCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
-        binding.excludeStringsExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
+        binding.excludeStringsCardViewCustomizeCommentFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.excludeStringsExplanationTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.excludeStringsTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.excludeStringsTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.excludeStringsTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
 
-        binding.excludeUsersCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
-        binding.excludeUsersExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
+        binding.excludeUsersCardViewCustomizeCommentFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.excludeUsersExplanationTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
+        binding.excludeUsersTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.excludeUsersTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.excludeUsersTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.addUsersImageViewCustomizeCommentFilterActivity.setImageDrawable(Utils.getTintedDrawable(this, R.drawable.ic_add_24dp, primaryIconColor));
 
-        binding.voteCardViewCustomizePostFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
-        binding.minVoteExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
+        binding.voteCardViewCustomizeCommentFilterActivity.setCardBackgroundColor(filledCardViewBackgroundColor);
+        binding.minVoteExplanationTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.minVoteTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.minVoteTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.minVoteTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
-        binding.maxVoteExplanationTextViewCustomizePostFilterActivity.setTextColor(primaryTextColor);
+        binding.maxVoteExplanationTextViewCustomizeCommentFilterActivity.setTextColor(primaryTextColor);
         binding.maxVoteTextInputLayoutCustomizeCommentFilterActivity.setBoxStrokeColor(primaryTextColor);
         binding.maxVoteTextInputLayoutCustomizeCommentFilterActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.maxVoteTextInputEditTextCustomizeCommentFilterActivity.setTextColor(primaryTextColor);

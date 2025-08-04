@@ -11,6 +11,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/best_type_text_view_sort_type_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -36,7 +40,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackground"
             android:clickable="true"
-            android:drawableStart="@drawable/ic_hot_24"
+            android:drawableStart="@drawable/ic_hot_24dp"
             android:drawablePadding="48dp"
             android:focusable="true"
             android:fontFamily="?attr/font_family"
@@ -74,7 +78,7 @@
             android:layout_height="wrap_content"
             android:background="?attr/selectableItemBackground"
             android:clickable="true"
-            android:drawableStart="@drawable/ic_rising_24"
+            android:drawableStart="@drawable/ic_rising_24dp"
             android:drawablePadding="48dp"
             android:focusable="true"
             android:fontFamily="?attr/font_family"

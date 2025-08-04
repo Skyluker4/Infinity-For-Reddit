@@ -10,6 +10,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
         <TextView
             android:id="@+id/text_type_linear_layout_post_type_bottom_sheet_fragment"
             android:layout_width="match_parent"
@@ -23,7 +27,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_text_24dp"
+            android:drawableStart="@drawable/ic_text_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -42,7 +46,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_link"
+            android:drawableStart="@drawable/ic_link_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -61,7 +65,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_outline_video_24dp"
+            android:drawableStart="@drawable/ic_video_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -80,7 +84,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_image_24dp"
+            android:drawableStart="@drawable/ic_image_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -99,7 +103,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_gallery_24dp"
+            android:drawableStart="@drawable/ic_gallery_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"
@@ -118,7 +122,7 @@
             android:textColor="?attr/primaryTextColor"
             android:textSize="?attr/font_default"
             android:fontFamily="?attr/font_family"
-            android:drawableStart="@drawable/ic_poll_24dp"
+            android:drawableStart="@drawable/ic_poll_day_night_24dp"
             android:drawablePadding="48dp"
             android:clickable="true"
             android:focusable="true"

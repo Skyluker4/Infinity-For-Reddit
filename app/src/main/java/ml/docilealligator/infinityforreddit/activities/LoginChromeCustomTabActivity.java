@@ -15,6 +15,10 @@ import androidx.annotation.NonNull;
 import androidx.browser.customtabs.CustomTabColorSchemeParams;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsService;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.snackbar.Snackbar;
 
@@ -31,10 +35,10 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import ml.docilealligator.infinityforreddit.FetchMyInfo;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
+import ml.docilealligator.infinityforreddit.account.FetchMyInfo;
 import ml.docilealligator.infinityforreddit.apis.RedditAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.ParseAndInsertNewAccount;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
@@ -73,19 +77,34 @@ public class LoginChromeCustomTabActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
-        //EdgeToEdge.enable(this);
         binding = ActivityLoginChromeCustomTabBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        /*ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });*/
 
         applyCustomTheme();
+
+        if (isImmersiveInterface()) {
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    setMargins(binding.toolbarLoginChromeCustomTabActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
+        }
 
         setSupportActionBar(binding.toolbarLoginChromeCustomTabActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -135,16 +154,17 @@ public class LoginChromeCustomTabActivity extends BaseActivity {
                                 String accessToken = responseJSON.getString(APIUtils.ACCESS_TOKEN_KEY);
                                 String refreshToken = responseJSON.getString(APIUtils.REFRESH_TOKEN_KEY);
 
-                                FetchMyInfo.fetchAccountInfo(mOauthRetrofit, mRedditDataRoomDatabase,
-                                        accessToken, new FetchMyInfo.FetchMyInfoListener() {
+                                FetchMyInfo.fetchAccountInfo(mExecutor, mHandler, mOauthRetrofit,
+                                        mRedditDataRoomDatabase, accessToken,
+                                        new FetchMyInfo.FetchMyInfoListener() {
                                             @Override
-                                            public void onFetchMyInfoSuccess(String name, String profileImageUrl, String bannerImageUrl, int karma) {
+                                            public void onFetchMyInfoSuccess(String name, String profileImageUrl, String bannerImageUrl, int karma, boolean isMod) {
                                                 mCurrentAccountSharedPreferences.edit().putString(SharedPreferencesUtils.ACCESS_TOKEN, accessToken)
                                                         .putString(SharedPreferencesUtils.ACCOUNT_NAME, name)
                                                         .putString(SharedPreferencesUtils.ACCOUNT_IMAGE_URL, profileImageUrl).apply();
                                                 mCurrentAccountSharedPreferences.edit().remove(SharedPreferencesUtils.SUBSCRIBED_THINGS_SYNC_TIME).apply();
                                                 ParseAndInsertNewAccount.parseAndInsertNewAccount(mExecutor, new Handler(), name, accessToken, refreshToken, profileImageUrl, bannerImageUrl,
-                                                        karma, authCode, mRedditDataRoomDatabase.accountDao(),
+                                                        karma, isMod, authCode, mRedditDataRoomDatabase.accountDao(),
                                                         () -> {
                                                             EventBus.getDefault().post(new NewUserLoggedInEvent());
                                                             finish();

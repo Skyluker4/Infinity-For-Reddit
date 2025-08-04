@@ -15,6 +15,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.PersistableBundle;
 import android.text.Html;
 import android.text.Spanned;
@@ -45,7 +46,9 @@ import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView;
 import com.github.piasy.biv.BigImageViewer;
 import com.github.piasy.biv.loader.ImageLoader;
 import com.github.piasy.biv.loader.glide.GlideImageLoader;
-import com.github.piasy.biv.view.GlideImageViewFactory;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
 
 import java.io.File;
 import java.util.concurrent.Executor;
@@ -57,15 +60,18 @@ import ml.docilealligator.infinityforreddit.BuildConfig;
 import ml.docilealligator.infinityforreddit.CustomFontReceiver;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
+import ml.docilealligator.infinityforreddit.SaveMemoryCenterInisdeDownsampleStrategy;
 import ml.docilealligator.infinityforreddit.SetAsWallpaperCallback;
 import ml.docilealligator.infinityforreddit.WallpaperSetter;
 import ml.docilealligator.infinityforreddit.asynctasks.SaveBitmapImageToFile;
 import ml.docilealligator.infinityforreddit.asynctasks.SaveGIFToFile;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.SetAsWallpaperBottomSheetFragment;
+import ml.docilealligator.infinityforreddit.customviews.GlideGifImageViewFactory;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
 import ml.docilealligator.infinityforreddit.customviews.slidr.model.SlidrConfig;
 import ml.docilealligator.infinityforreddit.customviews.slidr.model.SlidrPosition;
 import ml.docilealligator.infinityforreddit.databinding.ActivityViewImageOrGifBinding;
+import ml.docilealligator.infinityforreddit.events.FinishViewMediaActivityEvent;
 import ml.docilealligator.infinityforreddit.font.ContentFontFamily;
 import ml.docilealligator.infinityforreddit.font.ContentFontStyle;
 import ml.docilealligator.infinityforreddit.font.FontFamily;
@@ -134,6 +140,8 @@ public class ViewImageOrGifActivity extends AppCompatActivity implements SetAsWa
         binding = ActivityViewImageOrGifBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        EventBus.getDefault().register(this);
+
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
@@ -145,7 +153,7 @@ public class ViewImageOrGifActivity extends AppCompatActivity implements SetAsWa
 
         glide = Glide.with(this);
 
-        handler = new Handler();
+        handler = new Handler(Looper.getMainLooper());
 
         Intent intent = getIntent();
         mImageUrl = intent.getStringExtra(EXTRA_GIF_URL_KEY);
@@ -229,7 +237,7 @@ public class ViewImageOrGifActivity extends AppCompatActivity implements SetAsWa
             }
         });
 
-        binding.imageViewViewImageOrGifActivity.setImageViewFactory(new GlideImageViewFactory());
+        binding.imageViewViewImageOrGifActivity.setImageViewFactory(new GlideGifImageViewFactory(new SaveMemoryCenterInisdeDownsampleStrategy(Integer.parseInt(mSharedPreferences.getString(SharedPreferencesUtils.POST_FEED_MAX_RESOLUTION, "5000000")))));
 
         binding.imageViewViewImageOrGifActivity.setImageLoaderCallback(new ImageLoader.Callback() {
             @Override
@@ -358,14 +366,6 @@ public class ViewImageOrGifActivity extends AppCompatActivity implements SetAsWa
 
     private void download() {
         isDownloading = false;
-
-        /*Intent intent = new Intent(this, DownloadMediaService.class);
-        intent.putExtra(DownloadMediaService.EXTRA_URL, mImageUrl);
-        intent.putExtra(DownloadMediaService.EXTRA_MEDIA_TYPE, isGif ? DownloadMediaService.EXTRA_MEDIA_TYPE_GIF : DownloadMediaService.EXTRA_MEDIA_TYPE_IMAGE);
-        intent.putExtra(DownloadMediaService.EXTRA_FILE_NAME, mImageFileName);
-        intent.putExtra(DownloadMediaService.EXTRA_SUBREDDIT_NAME, mSubredditName);
-        intent.putExtra(DownloadMediaService.EXTRA_IS_NSFW, isNsfw);
-        ContextCompat.startForegroundService(this, intent);*/
 
         PersistableBundle extras = new PersistableBundle();
         extras.putString(DownloadMediaService.EXTRA_URL, mImageUrl);
@@ -547,12 +547,18 @@ public class ViewImageOrGifActivity extends AppCompatActivity implements SetAsWa
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
+        EventBus.getDefault().unregister(this);
         BigImageViewer.imageLoader().cancelAll();
+        super.onDestroy();
     }
 
     @Override
     public void setCustomFont(Typeface typeface, Typeface titleTypeface, Typeface contentTypeface) {
         this.typeface = typeface;
+    }
+
+    @Subscribe
+    public void onFinishViewMediaActivityEvent(FinishViewMediaActivityEvent e) {
+        finish();
     }
 }

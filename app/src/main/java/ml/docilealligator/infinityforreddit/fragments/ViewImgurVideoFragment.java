@@ -11,7 +11,6 @@ import android.graphics.drawable.Drawable;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PersistableBundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -33,9 +32,9 @@ import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
 import androidx.media3.datasource.DataSource;
-import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.cache.CacheDataSource;
 import androidx.media3.datasource.cache.SimpleCache;
+import androidx.media3.datasource.okhttp.OkHttpDataSource;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
@@ -49,16 +48,17 @@ import com.google.common.collect.ImmutableList;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import ml.docilealligator.infinityforreddit.ImgurMedia;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.activities.ViewImgurMediaActivity;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.PlaybackSpeedBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.databinding.FragmentViewImgurVideoBinding;
+import ml.docilealligator.infinityforreddit.post.ImgurMedia;
 import ml.docilealligator.infinityforreddit.services.DownloadMediaService;
 import ml.docilealligator.infinityforreddit.utils.APIUtils;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
+import okhttp3.OkHttpClient;
 
 public class ViewImgurVideoFragment extends Fragment {
 
@@ -78,6 +78,9 @@ public class ViewImgurVideoFragment extends Fragment {
     private boolean isMute = false;
     private boolean isDownloading = false;
     private int playbackSpeed = 100;
+    @Inject
+    @Named("media3")
+    OkHttpClient mOkHttpClient;
     @Inject
     @Named("default")
     SharedPreferences mSharedPreferences;
@@ -154,7 +157,7 @@ public class ViewImgurVideoFragment extends Fragment {
                 .build();
         binding.getRoot().setPlayer(player);
         dataSourceFactory = new CacheDataSource.Factory().setCache(mSimpleCache)
-                .setUpstreamDataSourceFactory(new DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true).setUserAgent(APIUtils.USER_AGENT));
+                .setUpstreamDataSourceFactory(new OkHttpDataSource.Factory(mOkHttpClient).setUserAgent(APIUtils.USER_AGENT));
         player.prepare();
         player.setMediaSource(new ProgressiveMediaSource.Factory(dataSourceFactory).createMediaSource(MediaItem.fromUri(imgurMedia.getLink())));
 
@@ -260,19 +263,8 @@ public class ViewImgurVideoFragment extends Fragment {
     private void download() {
         isDownloading = false;
 
-        /*Intent intent = new Intent(activity, DownloadMediaService.class);
-        intent.putExtra(DownloadMediaService.EXTRA_URL, imgurMedia.getLink());
-        intent.putExtra(DownloadMediaService.EXTRA_MEDIA_TYPE, DownloadMediaService.EXTRA_MEDIA_TYPE_VIDEO);
-        intent.putExtra(DownloadMediaService.EXTRA_FILE_NAME, imgurMedia.getFileName());
-        ContextCompat.startForegroundService(activity, intent);*/
-
-        PersistableBundle extras = new PersistableBundle();
-        extras.putString(DownloadMediaService.EXTRA_URL, imgurMedia.getLink());
-        extras.putInt(DownloadMediaService.EXTRA_MEDIA_TYPE, DownloadMediaService.EXTRA_MEDIA_TYPE_VIDEO);
-        extras.putString(DownloadMediaService.EXTRA_FILE_NAME, imgurMedia.getFileName());
-
         //TODO: contentEstimatedBytes
-        JobInfo jobInfo = DownloadMediaService.constructJobInfo(activity, 5000000, extras);
+        JobInfo jobInfo = DownloadMediaService.constructJobInfo(activity, 5000000, imgurMedia);
         ((JobScheduler) activity.getSystemService(Context.JOB_SCHEDULER_SERVICE)).schedule(jobInfo);
 
         Toast.makeText(activity, R.string.download_started, Toast.LENGTH_SHORT).show();

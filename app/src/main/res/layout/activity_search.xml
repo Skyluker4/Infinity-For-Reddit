@@ -54,7 +54,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:padding="8dp"
-                    android:src="@drawable/ic_open_link_24dp"
+                    android:src="@drawable/ic_open_link_day_night_24dp"
                     android:clickable="true"
                     android:focusable="true"
                     android:background="?attr/actionBarItemBackground"
@@ -67,8 +67,10 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
+        android:id="@+id/nested_scroll_view_search_activity"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout

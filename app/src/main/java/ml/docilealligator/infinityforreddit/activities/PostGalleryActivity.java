@@ -11,7 +11,6 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -21,10 +20,14 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -52,12 +55,9 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
-import ml.docilealligator.infinityforreddit.Flair;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.RedditGalleryPayload;
-import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.MarkdownBottomBarRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.adapters.RedditGallerySubmissionRecyclerViewAdapter;
@@ -70,7 +70,10 @@ import ml.docilealligator.infinityforreddit.customviews.LinearLayoutManagerBugFi
 import ml.docilealligator.infinityforreddit.databinding.ActivityPostGalleryBinding;
 import ml.docilealligator.infinityforreddit.events.SubmitGalleryPostEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
+import ml.docilealligator.infinityforreddit.post.RedditGalleryPayload;
 import ml.docilealligator.infinityforreddit.services.SubmitPostService;
+import ml.docilealligator.infinityforreddit.subreddit.Flair;
+import ml.docilealligator.infinityforreddit.thing.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.utils.JSONUtils;
 import ml.docilealligator.infinityforreddit.utils.UploadImageUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
@@ -150,7 +153,7 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
         binding = ActivityPostGalleryBinding.inflate(getLayoutInflater());
@@ -160,8 +163,37 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutPostGalleryActivity);
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutPostGalleryActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                                    | WindowInsetsCompat.Type.ime()
+                    );
+
+                    setMargins(binding.toolbarPostGalleryActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.linearLayoutPostGalleryActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarPostGalleryActivity);
@@ -366,8 +398,26 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
                 });
 
         binding.markdownBottomBarRecyclerViewPostGalleryActivity.setLayoutManager(new LinearLayoutManagerBugFixed(this,
-                LinearLayoutManager.HORIZONTAL, false));
+                LinearLayoutManager.HORIZONTAL, true).setStackFromEndAndReturnCurrentObject());
         binding.markdownBottomBarRecyclerViewPostGalleryActivity.setAdapter(adapter);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isPosting) {
+                    promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
+                } else {
+                    redditGalleryImageInfoList = PostGalleryActivity.this.adapter.getRedditGalleryImageInfoList();
+                    if (!binding.postTitleEditTextPostGalleryActivity.getText().toString().isEmpty()
+                            || !binding.postContentEditTextPostGalleryActivity.getText().toString().isEmpty()
+                            || redditGalleryImageInfoList != null) {
+                        promptAlertDialog(R.string.discard, R.string.discard_detail);
+                    } else {
+                        finish();
+                    }
+                }
+            }
+        });
     }
 
     private void loadCurrentAccount() {
@@ -545,19 +595,7 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
         if (itemId == android.R.id.home) {
-            if (isPosting) {
-                promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
-                return true;
-            } else {
-                redditGalleryImageInfoList = adapter.getRedditGalleryImageInfoList();
-                if (!binding.postTitleEditTextPostGalleryActivity.getText().toString().isEmpty()
-                        || !binding.postContentEditTextPostGalleryActivity.getText().toString().isEmpty()
-                        || redditGalleryImageInfoList != null) {
-                    promptAlertDialog(R.string.discard, R.string.discard_detail);
-                    return true;
-                }
-            }
-            finish();
+            triggerBackPress();
             return true;
         } else if (itemId == R.id.action_send_post_gallery_activity) {
             if (!subredditSelected) {
@@ -634,22 +672,6 @@ public class PostGalleryActivity extends BaseActivity implements FlairBottomShee
         }
 
         return false;
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (isPosting) {
-            promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
-        } else {
-            redditGalleryImageInfoList = adapter.getRedditGalleryImageInfoList();
-            if (!binding.postTitleEditTextPostGalleryActivity.getText().toString().isEmpty()
-                    || !binding.postContentEditTextPostGalleryActivity.getText().toString().isEmpty()
-                    || redditGalleryImageInfoList != null) {
-                promptAlertDialog(R.string.discard, R.string.discard_detail);
-            } else {
-                finish();
-            }
-        }
     }
 
     @Override

@@ -13,14 +13,19 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.InflateException;
-import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -49,7 +54,7 @@ public class WebViewActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
 
@@ -57,13 +62,40 @@ public class WebViewActivity extends BaseActivity {
             binding = ActivityWebViewBinding.inflate(getLayoutInflater());
             setContentView(binding.getRoot());
         } catch (InflateException ie) {
-            Log.e("LoginActivity", "Failed to inflate LoginActivity: " + ie.getMessage());
+            Log.e("WebViewActivity", "Failed to inflate WebViewActivity: " + ie.getMessage());
             Toast.makeText(WebViewActivity.this, R.string.no_system_webview_error, Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
         applyCustomTheme();
+
+        if (isImmersiveInterface()) {
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    setMargins(binding.toolbarWebViewActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.webViewWebViewActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom);
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
+        }
 
         setSupportActionBar(binding.toolbarWebViewActivity);
 
@@ -93,6 +125,18 @@ public class WebViewActivity extends BaseActivity {
             }
         };
         binding.webViewWebViewActivity.setWebViewClient(client);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (binding.webViewWebViewActivity.canGoBack()) {
+                    binding.webViewWebViewActivity.goBack();
+                } else {
+                    setEnabled(false);
+                    triggerBackPress();
+                }
+            }
+        });
     }
 
     @Override
@@ -166,22 +210,6 @@ public class WebViewActivity extends BaseActivity {
             }
         }
         return false;
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (keyCode == KeyEvent.KEYCODE_BACK) {
-                if (binding.webViewWebViewActivity.canGoBack()) {
-                    binding.webViewWebViewActivity.goBack();
-                } else {
-                    finish();
-                }
-                return true;
-            }
-
-        }
-        return super.onKeyDown(keyCode, event);
     }
 
     @Override

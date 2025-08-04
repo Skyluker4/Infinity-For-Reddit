@@ -22,7 +22,7 @@ import javax.inject.Named;
 
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
-import ml.docilealligator.infinityforreddit.customviews.CustomFontPreferenceFragmentCompat;
+import ml.docilealligator.infinityforreddit.customviews.preference.CustomFontPreferenceFragmentCompat;
 import ml.docilealligator.infinityforreddit.events.ChangeAppLockEvent;
 import ml.docilealligator.infinityforreddit.events.ChangeRequireAuthToAccountSectionEvent;
 import ml.docilealligator.infinityforreddit.events.ToggleSecureModeEvent;
@@ -78,6 +78,8 @@ public class SecurityPreferenceFragment extends CustomFontPreferenceFragmentComp
                 return true;
             });
         }
+
+        applyStyle();
     }
 
     @Override
@@ -94,7 +96,7 @@ public class SecurityPreferenceFragment extends CustomFontPreferenceFragmentComp
 
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
-                activity.onBackPressed();
+                activity.triggerBackPress();
             }
         });
 

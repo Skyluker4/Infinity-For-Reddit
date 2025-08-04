@@ -24,6 +24,7 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <LinearLayout
+        android:id="@+id/linear_layout_post_poll_activity"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -156,6 +157,7 @@
                         android:textColor="?attr/primaryTextColor"
                         android:textSize="?attr/font_default"
                         android:fontFamily="?attr/font_family"
+                        android:visibility="gone"
                         app:lib_setRadius="6dp"
                         app:lib_setRoundedView="true"
                         app:lib_setShape="rectangle" />
@@ -183,7 +185,7 @@
                         android:textSize="?attr/font_default"
                         android:fontFamily="?attr/font_family" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <ml.docilealligator.infinityforreddit.customviews.ThemedMaterialSwitch
                         android:id="@+id/receive_post_reply_notifications_switch_material_post_poll_activity"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

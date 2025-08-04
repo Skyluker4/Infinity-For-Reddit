@@ -18,7 +18,6 @@ import androidx.fragment.app.Fragment;
 
 import java.util.ArrayList;
 
-import ml.docilealligator.infinityforreddit.MediaMetadata;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.activities.BaseActivity;
@@ -31,6 +30,8 @@ import ml.docilealligator.infinityforreddit.activities.ViewUserDetailActivity;
 import ml.docilealligator.infinityforreddit.comment.Comment;
 import ml.docilealligator.infinityforreddit.customviews.LandscapeExpandedRoundedBottomSheetDialogFragment;
 import ml.docilealligator.infinityforreddit.databinding.FragmentCommentMoreBottomSheetBinding;
+import ml.docilealligator.infinityforreddit.thing.MediaMetadata;
+import ml.docilealligator.infinityforreddit.utils.ShareScreenshotUtilsKt;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 
 
@@ -107,31 +108,46 @@ public class CommentMoreBottomSheetFragment extends LandscapeExpandedRoundedBott
                     }
                 });
             }
+
+            if (comment.getAuthor().equals(activity.accountName)) {
+                binding.notificationViewCommentMoreBottomSheetFragment.setVisibility(View.VISIBLE);
+                binding.notificationViewCommentMoreBottomSheetFragment.setText(comment.isSendReplies() ? R.string.disable_reply_notifications : R.string.enable_reply_notifications);
+                binding.notificationViewCommentMoreBottomSheetFragment.setOnClickListener(view -> {
+                    dismiss();
+                    if (activity instanceof ViewPostDetailActivity) {
+                        ((ViewPostDetailActivity) activity).toggleReplyNotifications(comment, bundle.getInt(EXTRA_POSITION));
+                    } else if (activity instanceof ViewUserDetailActivity) {
+                        ((ViewUserDetailActivity) activity).toggleReplyNotifications(comment, bundle.getInt(EXTRA_POSITION));
+                    }
+                });
+            }
         }
 
         if (showReplyAndSaveOption) {
-            binding.replyTextViewCommentMoreBottomSheetFragment.setVisibility(View.VISIBLE);
+            if (!comment.isLocked()) {
+                binding.replyTextViewCommentMoreBottomSheetFragment.setVisibility(View.VISIBLE);
+                binding.replyTextViewCommentMoreBottomSheetFragment.setOnClickListener(view -> {
+                    Intent intent = new Intent(activity, CommentActivity.class);
+                    intent.putExtra(CommentActivity.EXTRA_PARENT_DEPTH_KEY, comment.getDepth() + 1);
+                    intent.putExtra(CommentActivity.EXTRA_COMMENT_PARENT_BODY_MARKDOWN_KEY, comment.getCommentMarkdown());
+                    intent.putExtra(CommentActivity.EXTRA_COMMENT_PARENT_BODY_KEY, comment.getCommentRawText());
+                    intent.putExtra(CommentActivity.EXTRA_PARENT_FULLNAME_KEY, comment.getFullName());
+                    intent.putExtra(CommentActivity.EXTRA_IS_REPLYING_KEY, true);
+
+                    intent.putExtra(CommentActivity.EXTRA_PARENT_POSITION_KEY, bundle.getInt(EXTRA_POSITION));
+                    activity.startActivityForResult(intent, CommentActivity.WRITE_COMMENT_REQUEST_CODE);
+
+                    dismiss();
+                });
+            }
             binding.saveTextViewCommentMoreBottomSheetFragment.setVisibility(View.VISIBLE);
             if (comment.isSaved()) {
-                binding.saveTextViewCommentMoreBottomSheetFragment.setCompoundDrawablesWithIntrinsicBounds(ContextCompat.getDrawable(activity, R.drawable.ic_bookmark_24dp), null, null, null);
+                binding.saveTextViewCommentMoreBottomSheetFragment.setCompoundDrawablesWithIntrinsicBounds(ContextCompat.getDrawable(activity, R.drawable.ic_bookmark_day_night_24dp), null, null, null);
                 binding.saveTextViewCommentMoreBottomSheetFragment.setText(R.string.unsave_comment);
             } else {
-                binding.saveTextViewCommentMoreBottomSheetFragment.setCompoundDrawablesWithIntrinsicBounds(ContextCompat.getDrawable(activity, R.drawable.ic_bookmark_border_24dp), null, null, null);
+                binding.saveTextViewCommentMoreBottomSheetFragment.setCompoundDrawablesWithIntrinsicBounds(ContextCompat.getDrawable(activity, R.drawable.ic_bookmark_border_day_night_24dp), null, null, null);
                 binding.saveTextViewCommentMoreBottomSheetFragment.setText(R.string.save_comment);
             }
-            binding.replyTextViewCommentMoreBottomSheetFragment.setOnClickListener(view -> {
-                Intent intent = new Intent(activity, CommentActivity.class);
-                intent.putExtra(CommentActivity.EXTRA_PARENT_DEPTH_KEY, comment.getDepth() + 1);
-                intent.putExtra(CommentActivity.EXTRA_COMMENT_PARENT_BODY_MARKDOWN_KEY, comment.getCommentMarkdown());
-                intent.putExtra(CommentActivity.EXTRA_COMMENT_PARENT_BODY_KEY, comment.getCommentRawText());
-                intent.putExtra(CommentActivity.EXTRA_PARENT_FULLNAME_KEY, comment.getFullName());
-                intent.putExtra(CommentActivity.EXTRA_IS_REPLYING_KEY, true);
-
-                intent.putExtra(CommentActivity.EXTRA_PARENT_POSITION_KEY, bundle.getInt(EXTRA_POSITION));
-                activity.startActivityForResult(intent, CommentActivity.WRITE_COMMENT_REQUEST_CODE);
-
-                dismiss();
-            });
 
             binding.saveTextViewCommentMoreBottomSheetFragment.setOnClickListener(view -> {
                 if (activity instanceof ViewPostDetailActivity) {
@@ -159,6 +175,11 @@ public class CommentMoreBottomSheetFragment extends LandscapeExpandedRoundedBott
             return true;
         });
 
+        binding.shareAsImageTextViewCommentMoreBottomSheetFragment.setOnClickListener(view -> {
+            dismiss();
+            ShareScreenshotUtilsKt.shareCommentAsScreenshot(activity, comment);
+        });
+
         binding.copyTextViewCommentMoreBottomSheetFragment.setOnClickListener(view -> {
             dismiss();
             CopyTextBottomSheetFragment.show(activity.getSupportFragmentManager(),
@@ -178,7 +199,46 @@ public class CommentMoreBottomSheetFragment extends LandscapeExpandedRoundedBott
             Intent intent = new Intent(activity, CommentFilterPreferenceActivity.class);
             intent.putExtra(CommentFilterPreferenceActivity.EXTRA_COMMENT, comment);
             activity.startActivity(intent);
+
+            dismiss();
         });
+
+        if (comment.getDepth() > 0 && activity instanceof ViewPostDetailActivity) {
+            binding.jumpToParentCommentCommentMoreBottomSheetFragment.setVisibility(View.VISIBLE);
+            binding.jumpToParentCommentCommentMoreBottomSheetFragment.setOnClickListener(view -> {
+                if (activity instanceof ViewPostDetailActivity) {
+                    ((ViewPostDetailActivity) activity).scrollToParentComment(bundle.getInt(EXTRA_POSITION), comment.getDepth());
+                }
+
+                dismiss();
+            });
+        }
+
+        if (comment.isCanModComment()) {
+            binding.modCommentMoreBottomSheetFragment.setVisibility(View.VISIBLE);
+            binding.modCommentMoreBottomSheetFragment.setOnClickListener(view -> {
+                CommentModerationActionBottomSheetFragment commentModerationActionBottomSheetFragment = CommentModerationActionBottomSheetFragment.newInstance(comment, bundle.getInt(EXTRA_POSITION));
+                Fragment parentFragment = getParentFragment();
+                if (parentFragment != null) {
+                    commentModerationActionBottomSheetFragment.show(parentFragment.getChildFragmentManager(), commentModerationActionBottomSheetFragment.getTag());
+                } else {
+                    commentModerationActionBottomSheetFragment.show(activity.getSupportFragmentManager(), commentModerationActionBottomSheetFragment.getTag());
+                }
+                dismiss();
+            });
+        }
+
+        if (comment.isApproved()) {
+            binding.statusCommentMoreBottomSheetFragment.setText(getString(R.string.approved_status, comment.getApprovedBy()));
+        } else if (comment.isRemoved()) {
+            if (comment.isSpam()) {
+                binding.statusCommentMoreBottomSheetFragment.setText(R.string.comment_spam_status);
+            } else {
+                binding.statusCommentMoreBottomSheetFragment.setText(R.string.comment_removed_status);
+            }
+        } else {
+            binding.statusCommentMoreBottomSheetFragment.setVisibility(View.GONE);
+        }
 
         if (activity.typeface != null) {
             Utils.setFontToAllTextViews(binding.getRoot(), activity.typeface);

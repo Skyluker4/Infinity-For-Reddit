@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.ArrayList;
 
 import ml.docilealligator.infinityforreddit.R;
-import ml.docilealligator.infinityforreddit.UserFlair;
+import ml.docilealligator.infinityforreddit.user.UserFlair;
 import ml.docilealligator.infinityforreddit.activities.BaseActivity;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.databinding.ItemUserFlairBinding;
@@ -22,7 +22,8 @@ public class UserFlairRecyclerViewAdapter extends RecyclerView.Adapter<RecyclerV
     private final ArrayList<UserFlair> userFlairs;
     private final ItemClickListener itemClickListener;
 
-    public UserFlairRecyclerViewAdapter(BaseActivity activity, CustomThemeWrapper customThemeWrapper, ArrayList<UserFlair> userFlairs,
+    public UserFlairRecyclerViewAdapter(BaseActivity activity, CustomThemeWrapper customThemeWrapper,
+                                        ArrayList<UserFlair> userFlairs,
                                         ItemClickListener itemClickListener) {
         this.activity = activity;
         this.customThemeWrapper = customThemeWrapper;

@@ -2,7 +2,6 @@ package ml.docilealligator.infinityforreddit.activities;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -12,6 +11,10 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.inputmethod.EditorInfoCompat;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -26,13 +29,11 @@ import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
-import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
 import ml.docilealligator.infinityforreddit.databinding.ActivityEditMultiRedditBinding;
 import ml.docilealligator.infinityforreddit.multireddit.EditMultiReddit;
 import ml.docilealligator.infinityforreddit.multireddit.FetchMultiRedditInfo;
 import ml.docilealligator.infinityforreddit.multireddit.MultiReddit;
 import ml.docilealligator.infinityforreddit.multireddit.MultiRedditJSONModel;
-import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 import retrofit2.Retrofit;
 
@@ -64,7 +65,7 @@ public class EditMultiRedditActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
         binding = ActivityEditMultiRedditBinding.inflate(getLayoutInflater());
@@ -72,12 +73,36 @@ public class EditMultiRedditActivity extends BaseActivity {
 
         applyCustomTheme();
 
-        if (mSharedPreferences.getBoolean(SharedPreferencesUtils.SWIPE_RIGHT_TO_GO_BACK, true)) {
-            Slidr.attach(this);
-        }
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutEditMultiRedditActivity);
+            }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutEditMultiRedditActivity);
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    setMargins(binding.toolbarEditMultiRedditActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.nestedScrollViewEditMultiRedditActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarEditMultiRedditActivity);
@@ -121,22 +146,23 @@ public class EditMultiRedditActivity extends BaseActivity {
                             }
                         });
             } else {
-                FetchMultiRedditInfo.fetchMultiRedditInfo(mRetrofit, accessToken, multipath, new FetchMultiRedditInfo.FetchMultiRedditInfoListener() {
-                    @Override
-                    public void success(MultiReddit multiReddit) {
-                        EditMultiRedditActivity.this.multiReddit = multiReddit;
-                        binding.progressBarEditMultiRedditActivity.setVisibility(View.GONE);
-                        binding.linearLayoutEditMultiRedditActivity.setVisibility(View.VISIBLE);
-                        binding.multiRedditNameEditTextEditMultiRedditActivity.setText(multiReddit.getDisplayName());
-                        binding.descriptionEditTextEditMultiRedditActivity.setText(multiReddit.getDescription());
-                        binding.visibilitySwitchEditMultiRedditActivity.setChecked(!multiReddit.getVisibility().equals("public"));
-                    }
+                FetchMultiRedditInfo.fetchMultiRedditInfo(mExecutor, mHandler, mRetrofit, accessToken,
+                        multipath, new FetchMultiRedditInfo.FetchMultiRedditInfoListener() {
+                            @Override
+                            public void success(MultiReddit multiReddit) {
+                                EditMultiRedditActivity.this.multiReddit = multiReddit;
+                                binding.progressBarEditMultiRedditActivity.setVisibility(View.GONE);
+                                binding.linearLayoutEditMultiRedditActivity.setVisibility(View.VISIBLE);
+                                binding.multiRedditNameEditTextEditMultiRedditActivity.setText(multiReddit.getDisplayName());
+                                binding.descriptionEditTextEditMultiRedditActivity.setText(multiReddit.getDescription());
+                                binding.visibilitySwitchEditMultiRedditActivity.setChecked(!multiReddit.getVisibility().equals("public"));
+                            }
 
-                    @Override
-                    public void failed() {
-                        Snackbar.make(binding.coordinatorLayoutEditMultiRedditActivity, R.string.cannot_fetch_multireddit, Snackbar.LENGTH_SHORT).show();
-                    }
-                });
+                            @Override
+                            public void failed() {
+                                Snackbar.make(binding.coordinatorLayoutEditMultiRedditActivity, R.string.cannot_fetch_multireddit, Snackbar.LENGTH_SHORT).show();
+                            }
+                        });
             }
         } else {
             binding.progressBarEditMultiRedditActivity.setVisibility(View.GONE);
@@ -248,7 +274,7 @@ public class EditMultiRedditActivity extends BaseActivity {
     protected void applyCustomTheme() {
         binding.coordinatorLayoutEditMultiRedditActivity.setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
         applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutEditMultiRedditActivity, binding.collapsingToolbarLayoutEditMultiRedditActivity, binding.toolbarEditMultiRedditActivity);
-        binding.progressBarEditMultiRedditActivity.setIndeterminateTintList(ColorStateList.valueOf(mCustomThemeWrapper.getColorAccent()));
+        binding.progressBarEditMultiRedditActivity.setIndicatorColor(mCustomThemeWrapper.getColorAccent());
         int primaryTextColor = mCustomThemeWrapper.getPrimaryTextColor();
         int secondaryTextColor = mCustomThemeWrapper.getSecondaryTextColor();
         binding.multiRedditNameEditTextEditMultiRedditActivity.setTextColor(primaryTextColor);

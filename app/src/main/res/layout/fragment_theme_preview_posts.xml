@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginBottom="144dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="2dp"
         style="?attr/materialCardViewElevatedStyle">
@@ -200,13 +200,13 @@
                     android:id="@+id/locked_image_view_theme_preview_posts_fragment"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/ic_outline_lock_24dp" />
+                    android:src="@drawable/ic_lock_day_night_24dp" />
 
                 <ImageView
                     android:id="@+id/crosspost_image_view_theme_preview_posts_fragment"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:src="@drawable/crosspost" />
+                    android:src="@drawable/ic_crosspost_24dp" />
 
             </com.nex3z.flowlayout.FlowLayout>
 
@@ -221,7 +221,7 @@
                 android:textSize="?attr/font_12"
                 android:fontFamily="?attr/font_family" />
 
-            <ProgressBar
+            <com.google.android.material.loadingindicator.LoadingIndicator
                 android:id="@+id/progress_bar_theme_preview_posts_fragment"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -233,7 +233,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="150dp"
                 android:scaleType="center"
-                android:src="@drawable/ic_link"
+                android:src="@drawable/ic_link_day_night_24dp"
                 app:tint="@android:color/tab_indicator_text" />
 
             <androidx.constraintlayout.widget.ConstraintLayout

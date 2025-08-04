@@ -13,7 +13,7 @@ import androidx.preference.PreferenceFragmentCompat;
 import ml.docilealligator.infinityforreddit.BuildConfig;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.activities.LinkResolverActivity;
-import ml.docilealligator.infinityforreddit.customviews.CustomFontPreferenceFragmentCompat;
+import ml.docilealligator.infinityforreddit.customviews.preference.CustomFontPreferenceFragmentCompat;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 
 /**
@@ -45,7 +45,7 @@ public class AboutPreferenceFragment extends CustomFontPreferenceFragmentCompat 
         if (ratePreference != null) {
             ratePreference.setOnPreferenceClickListener(preference -> {
                 Intent playStoreIntent = new Intent(Intent.ACTION_VIEW);
-                playStoreIntent.setData(Uri.parse("market://details?id=ml.docilealligator.infinityforreddit"));
+                playStoreIntent.setData(Uri.parse("market://details?id=ml.docilealligator.infinityforreddit.plus"));
                 if (playStoreIntent.resolveActivity(activity.getPackageManager()) != null) {
                     activity.startActivity(playStoreIntent);
                 } else {

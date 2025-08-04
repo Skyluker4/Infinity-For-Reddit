@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-import ml.docilealligator.infinityforreddit.MediaMetadata;
 import ml.docilealligator.infinityforreddit.commentfilter.CommentFilter;
+import ml.docilealligator.infinityforreddit.thing.MediaMetadata;
 import ml.docilealligator.infinityforreddit.utils.JSONUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 
@@ -110,17 +110,22 @@ public class ParseComment {
                             }
                         }
                     } else {
-                        Comment comment = parseSingleComment(childData, 0);
-                        String parentFullName = comment.getParentId();
+                        try {
+                            Comment comment = parseSingleComment(childData, 0);
+                            String parentFullName = comment.getParentId();
 
-                        Comment parentComment = findCommentByFullName(newComments, parentFullName);
-                        if (parentComment != null) {
-                            parentComment.setHasReply(true);
-                            parentComment.addChild(comment, parentComment.getChildCount());
-                            parentComment.setChildCount(parentComment.getChildCount() + 1);
-                        } else {
-                            // assume that it is parent of this call
-                            newComments.add(comment);
+                            Comment parentComment = findCommentByFullName(newComments, parentFullName);
+                            if (parentComment != null) {
+                                parentComment.setHasReply(true);
+                                parentComment.addChild(comment, parentComment.getChildCount());
+                                parentComment.setChildCount(parentComment.getChildCount() + 1);
+                            } else {
+                                // assume that it is parent of this call
+                                newComments.add(comment);
+                            }
+                        } catch (JSONException e) {
+                            // Well we need to catch and ignore the exception to not show "error loading comments" to users
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -253,10 +258,17 @@ public class ParseComment {
         }
     }
 
-    static Comment parseSingleComment(JSONObject singleCommentData, int depth) throws JSONException {
+    public static Comment parseSingleComment(JSONObject singleCommentData, int depth) throws JSONException {
         String id = singleCommentData.getString(JSONUtils.ID_KEY);
         String fullName = singleCommentData.getString(JSONUtils.NAME_KEY);
         String author = singleCommentData.getString(JSONUtils.AUTHOR_KEY);
+
+        String authorFullname = "";
+
+        if (singleCommentData.has(JSONUtils.AUTHOR_FULLNAME_KEY)) {
+            authorFullname = singleCommentData.getString(JSONUtils.AUTHOR_FULLNAME_KEY);
+        }
+
         StringBuilder authorFlairHTMLBuilder = new StringBuilder();
         if (singleCommentData.has(JSONUtils.AUTHOR_FLAIR_RICHTEXT_KEY)) {
             JSONArray flairArray = singleCommentData.getJSONArray(JSONUtils.AUTHOR_FLAIR_RICHTEXT_KEY);
@@ -298,6 +310,14 @@ public class ParseComment {
         long submitTime = singleCommentData.getLong(JSONUtils.CREATED_UTC_KEY) * 1000;
         boolean scoreHidden = singleCommentData.getBoolean(JSONUtils.SCORE_HIDDEN_KEY);
         boolean saved = singleCommentData.getBoolean(JSONUtils.SAVED_KEY);
+        boolean sendReplies = singleCommentData.getBoolean(JSONUtils.SEND_REPLIES_KEY);
+        boolean locked = singleCommentData.getBoolean(JSONUtils.LOCKED_KEY);
+        boolean canModComment = singleCommentData.getBoolean(JSONUtils.CAN_MOD_POST_KEY);
+        boolean approved = singleCommentData.has(JSONUtils.APPROVED_KEY) && singleCommentData.getBoolean(JSONUtils.APPROVED_KEY);
+        long approvedAtUTC = singleCommentData.has(JSONUtils.APPROVED_AT_UTC_KEY) ? (singleCommentData.isNull(JSONUtils.APPROVED_AT_UTC_KEY) ? 0 : singleCommentData.getLong(JSONUtils.APPROVED_AT_UTC_KEY) * 1000) : 0;
+        String approvedBy = singleCommentData.has(JSONUtils.APPROVED_BY_KEY) ? singleCommentData.getString(JSONUtils.APPROVED_BY_KEY) : null;
+        boolean removed = singleCommentData.has(JSONUtils.REMOVED_KEY) && singleCommentData.getBoolean(JSONUtils.REMOVED_KEY);
+        boolean spam = singleCommentData.has(JSONUtils.SPAM_KEY) && singleCommentData.getBoolean(JSONUtils.SPAM_KEY);
 
         if (singleCommentData.has(JSONUtils.DEPTH_KEY)) {
             depth = singleCommentData.getInt(JSONUtils.DEPTH_KEY);
@@ -309,11 +329,11 @@ public class ParseComment {
         // this key can either be a bool (false) or a long (edited timestamp)
         long edited = singleCommentData.optLong(JSONUtils.EDITED_KEY) * 1000;
 
-        return new Comment(id, fullName, author, authorFlair, authorFlairHTMLBuilder.toString(),
+        return new Comment(id, fullName, author, authorFullname, authorFlair, authorFlairHTMLBuilder.toString(),
                 linkAuthor, submitTime, commentMarkdown, commentRawText,
                 linkId, subredditName, parentId, score, voteType, isSubmitter, distinguished,
-                permalink, depth, collapsed, hasReply, scoreHidden, saved, edited,
-                mediaMetadataMap);
+                permalink, depth, collapsed, hasReply, scoreHidden, saved, sendReplies, locked, canModComment,
+                approved, approvedAtUTC, approvedBy, removed, spam, edited, mediaMetadataMap);
     }
 
     @Nullable

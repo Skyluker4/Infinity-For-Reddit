@@ -7,12 +7,16 @@ import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import org.greenrobot.eventbus.EventBus;
@@ -23,15 +27,10 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
-import ml.docilealligator.infinityforreddit.FragmentCommunicator;
 import ml.docilealligator.infinityforreddit.Infinity;
-import ml.docilealligator.infinityforreddit.MarkPostAsReadInterface;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RecyclerViewContentScrollingInterface;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.SortType;
-import ml.docilealligator.infinityforreddit.SortTypeSelectionCallback;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.FilteredThingFABMoreOptionsBottomSheetFragment;
 import ml.docilealligator.infinityforreddit.bottomsheetfragments.PostLayoutBottomSheetFragment;
@@ -43,13 +42,19 @@ import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
 import ml.docilealligator.infinityforreddit.databinding.ActivityFilteredThingBinding;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
+import ml.docilealligator.infinityforreddit.fragments.FragmentCommunicator;
 import ml.docilealligator.infinityforreddit.fragments.PostFragment;
+import ml.docilealligator.infinityforreddit.post.MarkPostAsReadInterface;
 import ml.docilealligator.infinityforreddit.post.Post;
 import ml.docilealligator.infinityforreddit.post.PostPagingSource;
 import ml.docilealligator.infinityforreddit.postfilter.PostFilter;
 import ml.docilealligator.infinityforreddit.readpost.InsertReadPost;
+import ml.docilealligator.infinityforreddit.readpost.ReadPostsUtils;
 import ml.docilealligator.infinityforreddit.subreddit.SubredditViewModel;
+import ml.docilealligator.infinityforreddit.thing.SortType;
+import ml.docilealligator.infinityforreddit.thing.SortTypeSelectionCallback;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
+import ml.docilealligator.infinityforreddit.utils.Utils;
 
 public class FilteredPostsActivity extends BaseActivity implements SortTypeSelectionCallback,
         PostLayoutBottomSheetFragment.PostLayoutSelectionCallback, ActivityToolbarInterface,
@@ -73,6 +78,9 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
     @Inject
     @Named("default")
     SharedPreferences mSharedPreferences;
+    @Inject
+    @Named("post_history")
+    SharedPreferences mPostHistorySharedPreferences;
     @Inject
     @Named("post_layout")
     SharedPreferences mPostLayoutSharedPreferences;
@@ -125,14 +133,47 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
                 } else {
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
-                adjustToolbar(binding.toolbarFilteredPostsActivity);
+
+                ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                    @NonNull
+                    @Override
+                    public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                        Insets allInsets = insets.getInsets(
+                                WindowInsetsCompat.Type.systemBars()
+                                        | WindowInsetsCompat.Type.displayCutout()
+                        );
+
+                        setMargins(binding.toolbarFilteredPostsActivity,
+                                allInsets.left,
+                                allInsets.top,
+                                allInsets.right,
+                                BaseActivity.IGNORE_MARGIN);
+
+                        setMargins(binding.frameLayoutFilteredPostsActivity,
+                                allInsets.left,
+                                BaseActivity.IGNORE_MARGIN,
+                                allInsets.right,
+                                BaseActivity.IGNORE_MARGIN
+                        );
+
+                        setMargins(binding.fabFilteredThingActivity,
+                                BaseActivity.IGNORE_MARGIN,
+                                BaseActivity.IGNORE_MARGIN,
+                                (int) Utils.convertDpToPixel(16, FilteredPostsActivity.this) + allInsets.right,
+                                (int) Utils.convertDpToPixel(16, FilteredPostsActivity.this) + allInsets.bottom);
+
+                        return WindowInsetsCompat.CONSUMED;
+                    }
+                });
+
+                /*adjustToolbar(binding.toolbarFilteredPostsActivity);
 
                 int navBarHeight = getNavBarHeight();
                 if (navBarHeight > 0) {
                     CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) binding.fabFilteredThingActivity.getLayoutParams();
                     params.bottomMargin += navBarHeight;
                     binding.fabFilteredThingActivity.setLayoutParams(params);
-                }
+                }*/
             }
         }
 
@@ -160,6 +201,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
                     postFilter.containGalleryType = false;
                     break;
                 case Post.LINK_TYPE:
+                case Post.NO_PREVIEW_LINK_TYPE:
                     postFilter.containTextType = false;
                     postFilter.containLinkType = true;
                     postFilter.containImageType = false;
@@ -227,7 +269,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (mFragment != null) {
-            return ((FragmentCommunicator) mFragment).handleKeyDown(keyCode) || super.onKeyDown(keyCode, event);
+            return mFragment.handleKeyDown(keyCode) || super.onKeyDown(keyCode, event);
         }
 
         return super.onKeyDown(keyCode, event);
@@ -432,7 +474,7 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
                 case PostPagingSource.TYPE_SEARCH:
                     mPostLayoutSharedPreferences.edit().putInt(SharedPreferencesUtils.POST_LAYOUT_SEARCH_POST, postLayout).apply();
             }
-            ((FragmentCommunicator) mFragment).changePostLayout(postLayout);
+            mFragment.changePostLayout(postLayout);
         }
     }
 
@@ -459,7 +501,8 @@ public class FilteredPostsActivity extends BaseActivity implements SortTypeSelec
 
     @Override
     public void markPostAsRead(Post post) {
-        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, accountName, post.getId());
+        int readPostsLimit = ReadPostsUtils.GetReadPostsLimit(accountName, mPostHistorySharedPreferences);
+        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, accountName, post.getId(), readPostsLimit);
     }
 
     @Override

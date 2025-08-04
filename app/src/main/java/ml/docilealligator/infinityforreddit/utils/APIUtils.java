@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import ml.docilealligator.infinityforreddit.BuildConfig;
+import ml.docilealligator.infinityforreddit.account.Account;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 
@@ -23,10 +24,8 @@ public class APIUtils {
     public static final String API_UPLOAD_VIDEO_URI = "https://reddit-uploaded-video.s3-accelerate.amazonaws.com";
     public static final String REDGIFS_API_BASE_URI = "https://api.redgifs.com";
     public static final String IMGUR_API_BASE_URI = "https://api.imgur.com/3/";
-    public static final String PUSHSHIFT_API_BASE_URI = "https://api.pushshift.io/";
-    public static final String REVEDDIT_API_BASE_URI = "https://api.reveddit.com/";
     public static final String STREAMABLE_API_BASE_URI = "https://api.streamable.com";
-    public static final String ONLINE_CUSTOM_THEMES_API_BASE_URI = "http://127.0.0.1";
+    public static final String SERVER_API_BASE_URI = "http://127.0.0.1";
 
     public static final String CLIENT_ID_KEY = "client_id";
     public static final String CLIENT_SECRET_KEY = "client_secret";
@@ -34,6 +33,7 @@ public class APIUtils {
     public static final String IMGUR_CLIENT_ID = "Client-ID cc671794e0ab397";
     public static final String REDGIFS_CLIENT_ID = "1828d0bcc93-15ac-bde6-0005-d2ecbe8daab3";
     public static final String REDGIFS_CLIENT_SECRET = "TJBlw7jRXW65NAGgFBtgZHu97WlzRXHYybK81sZ9dLM=";
+    public static final String GIPHY_GIF_API_KEY = "";
     public static final String RESPONSE_TYPE_KEY = "response_type";
     public static final String RESPONSE_TYPE = "code";
     public static final String STATE_KEY = "state";
@@ -50,6 +50,7 @@ public class APIUtils {
     public static final String AUTHORIZATION_BASE = "bearer ";
     public static final String USER_AGENT_KEY = "User-Agent";
     public static final String USER_AGENT = "android:ml.docilealligator.infinityforreddit:" + BuildConfig.VERSION_NAME + " (by /u/Hostilenemy)";
+    public static final String USERNAME_KEY = "username";
 
     public static final String GRANT_TYPE_KEY = "grant_type";
     public static final String GRANT_TYPE_REFRESH_TOKEN = "refresh_token";
@@ -115,6 +116,11 @@ public class APIUtils {
     public static final String REFERER_KEY = "Referer";
     public static final String REVEDDIT_REFERER = "https://www.reveddit.com/";
 
+    public static final String SPAM_KEY = "spam";
+    public static final String HOW_KEY = "how";
+    public static final String HOW_YES = "yes";
+    public static final String HOW_NO = "no";
+
     public static Map<String, String> getHttpBasicAuthHeader() {
         Map<String, String> params = new HashMap<>();
         String credentials = String.format("%s:%s", APIUtils.CLIENT_ID, "");
@@ -127,6 +133,17 @@ public class APIUtils {
         Map<String, String> params = new HashMap<>();
         params.put(APIUtils.AUTHORIZATION_KEY, APIUtils.AUTHORIZATION_BASE + accessToken);
         params.put(APIUtils.USER_AGENT_KEY, APIUtils.USER_AGENT);
+        return params;
+    }
+
+    public static Map<String, String> getServerHeader(String serverAccessToken, String accountName, boolean anonymous) {
+        if (accountName.equals(Account.ANONYMOUS_ACCOUNT) || anonymous) {
+            return new HashMap<>();
+        }
+
+        Map<String, String> params = new HashMap<>();
+        params.put(APIUtils.AUTHORIZATION_KEY, APIUtils.AUTHORIZATION_BASE + serverAccessToken);
+        params.put(APIUtils.USERNAME_KEY, accountName);
         return params;
     }
 

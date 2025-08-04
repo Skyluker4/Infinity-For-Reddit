@@ -1,6 +1,5 @@
 package ml.docilealligator.infinityforreddit.user;
 
-import android.os.AsyncTask;
 import android.os.Handler;
 
 import androidx.annotation.NonNull;
@@ -21,18 +20,18 @@ import retrofit2.Callback;
 import retrofit2.Retrofit;
 
 public class UserFollowing {
-    public static void followUser(Retrofit oauthRetrofit, Retrofit retrofit,
+    public static void followUser(Executor executor, Handler handler, Retrofit oauthRetrofit, Retrofit retrofit,
                                   @Nullable String accessToken, String username, @NonNull String accountName,
                                   RedditDataRoomDatabase redditDataRoomDatabase,
                                   UserFollowingListener userFollowingListener) {
-        userFollowing(oauthRetrofit, retrofit, accessToken, username, accountName, "sub",
+        userFollowing(executor, handler, oauthRetrofit, retrofit, accessToken, username, accountName, "sub",
                 redditDataRoomDatabase.subscribedUserDao(), userFollowingListener);
     }
 
     public static void anonymousFollowUser(Executor executor, Handler handler, Retrofit retrofit, String username,
                                            RedditDataRoomDatabase redditDataRoomDatabase,
                                            UserFollowingListener userFollowingListener) {
-        FetchUserData.fetchUserData(retrofit, username, new FetchUserData.FetchUserDataListener() {
+        FetchUserData.fetchUserData(executor, handler, retrofit, username, new FetchUserData.FetchUserDataListener() {
             @Override
             public void onFetchUserDataSuccess(UserData userData, int inboxCount) {
                 executor.execute(() -> {
@@ -53,11 +52,11 @@ public class UserFollowing {
         });
     }
 
-    public static void unfollowUser(Retrofit oauthRetrofit, Retrofit retrofit,
+    public static void unfollowUser(Executor executor, Handler handler, Retrofit oauthRetrofit, Retrofit retrofit,
                                     @Nullable String accessToken, String username, @NonNull String accountName,
                                     RedditDataRoomDatabase redditDataRoomDatabase,
                                     UserFollowingListener userFollowingListener) {
-        userFollowing(oauthRetrofit, retrofit, accessToken, username, accountName, "unsub",
+        userFollowing(executor, handler, oauthRetrofit, retrofit, accessToken, username, accountName, "unsub",
                 redditDataRoomDatabase.subscribedUserDao(), userFollowingListener);
     }
 
@@ -71,7 +70,7 @@ public class UserFollowing {
         });
     }
 
-    private static void userFollowing(Retrofit oauthRetrofit, Retrofit retrofit, @Nullable String accessToken,
+    private static void userFollowing(Executor executor, Handler handler, Retrofit oauthRetrofit, Retrofit retrofit, @Nullable String accessToken,
                                       String username, @NonNull String accountName, String action, SubscribedUserDao subscribedUserDao,
                                       UserFollowingListener userFollowingListener) {
         RedditAPI api = oauthRetrofit.create(RedditAPI.class);
@@ -86,10 +85,14 @@ public class UserFollowing {
             public void onResponse(@NonNull Call<String> call, @NonNull retrofit2.Response<String> response) {
                 if (response.isSuccessful()) {
                     if (action.equals("sub")) {
-                        FetchUserData.fetchUserData(retrofit, username, new FetchUserData.FetchUserDataListener() {
+                        FetchUserData.fetchUserData(executor, handler, retrofit, username, new FetchUserData.FetchUserDataListener() {
                             @Override
                             public void onFetchUserDataSuccess(UserData userData, int inboxCount) {
-                                new UpdateSubscriptionAsyncTask(subscribedUserDao, userData, accountName, true).execute();
+                                executor.execute(() -> {
+                                    SubscribedUserData subscribedUserData = new SubscribedUserData(userData.getName(), userData.getIconUrl(),
+                                            accountName, false);
+                                    subscribedUserDao.insert(subscribedUserData);
+                                });
                             }
 
                             @Override
@@ -97,10 +100,13 @@ public class UserFollowing {
 
                             }
                         });
+                        userFollowingListener.onUserFollowingSuccess();
                     } else {
-                        new UpdateSubscriptionAsyncTask(subscribedUserDao, username, accountName, false).execute();
+                        executor.execute(() -> {
+                            subscribedUserDao.deleteSubscribedUser(username, accountName);
+                            handler.post(userFollowingListener::onUserFollowingSuccess);
+                        });
                     }
-                    userFollowingListener.onUserFollowingSuccess();
                 } else {
                     userFollowingListener.onUserFollowingFail();
                 }
@@ -117,41 +123,5 @@ public class UserFollowing {
         void onUserFollowingSuccess();
 
         void onUserFollowingFail();
-    }
-
-    private static class UpdateSubscriptionAsyncTask extends AsyncTask<Void, Void, Void> {
-
-        private final SubscribedUserDao subscribedUserDao;
-        private String username;
-        private final String accountName;
-        private SubscribedUserData subscribedUserData;
-        private final boolean isSubscribing;
-
-        UpdateSubscriptionAsyncTask(SubscribedUserDao subscribedUserDao, String username,
-                                    @NonNull String accountName, boolean isSubscribing) {
-            this.subscribedUserDao = subscribedUserDao;
-            this.username = username;
-            this.accountName = accountName;
-            this.isSubscribing = isSubscribing;
-        }
-
-        UpdateSubscriptionAsyncTask(SubscribedUserDao subscribedUserDao, UserData userData,
-                                    @NonNull String accountName, boolean isSubscribing) {
-            this.subscribedUserDao = subscribedUserDao;
-            this.subscribedUserData = new SubscribedUserData(userData.getName(), userData.getIconUrl(),
-                    accountName, false);
-            this.accountName = accountName;
-            this.isSubscribing = isSubscribing;
-        }
-
-        @Override
-        protected Void doInBackground(Void... voids) {
-            if (isSubscribing) {
-                subscribedUserDao.insert(subscribedUserData);
-            } else {
-                subscribedUserDao.deleteSubscribedUser(username, accountName);
-            }
-            return null;
-        }
     }
 }

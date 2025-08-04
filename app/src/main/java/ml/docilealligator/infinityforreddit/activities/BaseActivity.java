@@ -18,8 +18,11 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -41,16 +44,17 @@ import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 
+import org.greenrobot.eventbus.EventBus;
+
 import java.lang.reflect.Field;
 import java.util.Locale;
 
-import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
-import ml.docilealligator.infinityforreddit.AppBarStateChangeListener;
 import ml.docilealligator.infinityforreddit.CustomFontReceiver;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.customviews.slidr.widget.SliderPanel;
+import ml.docilealligator.infinityforreddit.events.FinishViewMediaActivityEvent;
 import ml.docilealligator.infinityforreddit.font.ContentFontFamily;
 import ml.docilealligator.infinityforreddit.font.ContentFontStyle;
 import ml.docilealligator.infinityforreddit.font.FontFamily;
@@ -62,6 +66,8 @@ import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 
 public abstract class BaseActivity extends AppCompatActivity implements CustomFontReceiver {
+    public static final int IGNORE_MARGIN = -1;
+
     private boolean immersiveInterface;
     private boolean changeStatusBarIconColor;
     private boolean transparentStatusBarAfterToolbarCollapsed;
@@ -69,6 +75,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
     private boolean isImmersiveInterfaceApplicable = true;
     private int systemVisibilityToolbarExpanded = 0;
     private int systemVisibilityToolbarCollapsed = 0;
+    private boolean shouldTrackFullscreenMediaPeekTouchEvent;
     public CustomThemeWrapper customThemeWrapper;
     public Typeface typeface;
     public Typeface titleTypeface;
@@ -81,6 +88,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
     public String accessToken;
     @NonNull
     public String accountName = Account.ANONYMOUS_ACCOUNT;
+    public Handler mHandler;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -110,8 +118,8 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
 
         boolean systemDefault = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q;
         int systemThemeType = Integer.parseInt(mSharedPreferences.getString(SharedPreferencesUtils.THEME_KEY, "2"));
-        immersiveInterface = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                mSharedPreferences.getBoolean(SharedPreferencesUtils.IMMERSIVE_INTERFACE_KEY, true);
+        immersiveInterface = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                mSharedPreferences.getBoolean(SharedPreferencesUtils.IMMERSIVE_INTERFACE_KEY, true)) || Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM;
         if (immersiveInterface && config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             immersiveInterface = !mSharedPreferences.getBoolean(SharedPreferencesUtils.DISABLE_IMMERSIVE_INTERFACE_IN_LANDSCAPE_MODE, false);
         }
@@ -232,6 +240,42 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
 
         accessToken = getCurrentAccountSharedPreferences().getString(SharedPreferencesUtils.ACCESS_TOKEN, null);
         accountName = getCurrentAccountSharedPreferences().getString(SharedPreferencesUtils.ACCOUNT_NAME, Account.ANONYMOUS_ACCOUNT);
+
+        mHandler = new Handler(Looper.getMainLooper());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && mSliderPanel != null) {
+            setTranslucent(true);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && mSliderPanel != null && !isFinishing()) {
+            mHandler.postDelayed(() -> setTranslucent(false), 500);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mHandler.removeCallbacksAndMessages(null);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (shouldTrackFullscreenMediaPeekTouchEvent) {
+            if (ev.getAction() == MotionEvent.ACTION_CANCEL || ev.getAction() == MotionEvent.ACTION_UP) {
+                shouldTrackFullscreenMediaPeekTouchEvent = false;
+                EventBus.getDefault().post(new FinishViewMediaActivityEvent());
+            }
+            return true;
+        }
+        return super.dispatchTouchEvent(ev);
     }
 
     public abstract SharedPreferences getDefaultSharedPreferences();
@@ -267,14 +311,14 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
         });
     }
 
-    protected void adjustToolbar(Toolbar toolbar) {
+    /*protected void adjustToolbar(Toolbar toolbar) {
         int statusBarResourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
         if (statusBarResourceId > 0) {
             ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) toolbar.getLayoutParams();
             params.topMargin = getResources().getDimensionPixelSize(statusBarResourceId);
             toolbar.setLayoutParams(params);
         }
-    }
+    }*/
 
     protected void addOnOffsetChangedListener(AppBarLayout appBarLayout) {
         View decorView = getWindow().getDecorView();
@@ -290,7 +334,7 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
         });
     }
 
-    public int getNavBarHeight() {
+    /*public int getNavBarHeight() {
         if (isImmersiveInterfaceApplicable && immersiveInterface && getDefaultSharedPreferences().getBoolean(SharedPreferencesUtils.IMMERSIVE_INTERFACE_IGNORE_NAV_BAR_KEY, false)) {
             return 0;
         }
@@ -301,15 +345,37 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
             return resources.getDimensionPixelSize(navBarResourceId);
         }
         return 0;
-    }
+    }*/
 
-    public int getStatusBarHeight() {
+    /*public int getStatusBarHeight() {
         int result = 0;
         int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = getResources().getDimensionPixelSize(resourceId);
         }
         return result;
+    }*/
+
+    public static <T extends View> void setMargins(T view, int left, int top, int right, int bottom) {
+        ViewGroup.LayoutParams lp = view.getLayoutParams();
+        if (lp instanceof ViewGroup.MarginLayoutParams) {
+            ViewGroup.MarginLayoutParams marginParams = (ViewGroup.MarginLayoutParams) lp;
+
+            if (top >= 0) {
+                marginParams.topMargin = top;
+            }
+            if (bottom >= 0) {
+                marginParams.bottomMargin = bottom;
+            }
+            if (left >= 0) {
+                marginParams.setMarginStart(left);
+            }
+            if (right >= 0) {
+                marginParams.setMarginEnd(right);
+            }
+
+            view.setLayoutParams(marginParams);
+        }
     }
 
     protected void setTransparentStatusBarAfterToolbarCollapsed() {
@@ -320,7 +386,10 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
         hasDrawerLayout = true;
     }
 
-    public void setImmersiveModeNotApplicable() {
+    public void setImmersiveModeNotApplicableBelowAndroid16() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return;
+        }
         isImmersiveInterfaceApplicable = false;
     }
 
@@ -470,5 +539,13 @@ public abstract class BaseActivity extends AppCompatActivity implements CustomFo
         } else {
             Toast.makeText(this, R.string.copy_link_failed, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    public void triggerBackPress() {
+        getOnBackPressedDispatcher().onBackPressed();
+    }
+
+    public void setShouldTrackFullscreenMediaPeekTouchEvent(boolean value) {
+        shouldTrackFullscreenMediaPeekTouchEvent = value;
     }
 }

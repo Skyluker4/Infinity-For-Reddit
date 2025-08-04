@@ -8,6 +8,10 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
@@ -55,7 +59,7 @@ public class SettingsActivity extends BaseActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
 
@@ -66,8 +70,31 @@ public class SettingsActivity extends BaseActivity implements
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutSettingsActivity);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutSettingsActivity);
+            }
+
+            if (isImmersiveInterface()) {
+                ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                    @NonNull
+                    @Override
+                    public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                        Insets allInsets = insets.getInsets(
+                                WindowInsetsCompat.Type.systemBars()
+                                        | WindowInsetsCompat.Type.displayCutout()
+                        );
+
+                        setMargins(binding.toolbarSettingsActivity,
+                                allInsets.left,
+                                allInsets.top,
+                                allInsets.right,
+                                BaseActivity.IGNORE_MARGIN);
+
+                        return insets;
+                    }
+                });
+            }
         }
 
         setSupportActionBar(binding.toolbarSettingsActivity);
@@ -82,10 +109,6 @@ public class SettingsActivity extends BaseActivity implements
         }
 
         getSupportFragmentManager().addOnBackStackChangedListener(() -> {
-            if (getSupportFragmentManager().getBackStackEntryCount() == 0) {
-                setTitle(R.string.settings_activity_label);
-                return;
-            }
             Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.frame_layout_settings_activity);
             if (fragment instanceof AboutPreferenceFragment) {
                 setTitle(R.string.settings_about_master_title);
@@ -99,6 +122,8 @@ public class SettingsActivity extends BaseActivity implements
                 setTitle(R.string.settings_category_post_title);
             } else if (fragment instanceof AdvancedPreferenceFragment) {
                 setTitle(R.string.settings_advanced_master_title);
+            } else if (fragment instanceof MainPreferenceFragment) {
+                setTitle(R.string.settings_activity_label);
             }
         });
     }

@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.PersistableBundle;
@@ -18,9 +17,14 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
@@ -46,11 +50,9 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
-import ml.docilealligator.infinityforreddit.Flair;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.MarkdownBottomBarRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.asynctasks.LoadSubredditIcon;
@@ -62,6 +64,8 @@ import ml.docilealligator.infinityforreddit.databinding.ActivityPostVideoBinding
 import ml.docilealligator.infinityforreddit.events.SubmitVideoOrGifPostEvent;
 import ml.docilealligator.infinityforreddit.events.SwitchAccountEvent;
 import ml.docilealligator.infinityforreddit.services.SubmitPostService;
+import ml.docilealligator.infinityforreddit.subreddit.Flair;
+import ml.docilealligator.infinityforreddit.thing.SelectThingReturnKey;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import retrofit2.Retrofit;
 
@@ -143,7 +147,7 @@ public class PostVideoActivity extends BaseActivity implements FlairBottomSheetF
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
 
@@ -154,8 +158,37 @@ public class PostVideoActivity extends BaseActivity implements FlairBottomSheetF
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutPostVideoActivity);
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutPostVideoActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                                    | WindowInsetsCompat.Type.ime()
+                    );
+
+                    setMargins(binding.toolbarPostVideoActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.linearLayoutPostVideoActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarPostVideoActivity);
@@ -374,8 +407,26 @@ public class PostVideoActivity extends BaseActivity implements FlairBottomSheetF
         });
 
         binding.markdownBottomBarRecyclerViewPostVideoActivity.setLayoutManager(new LinearLayoutManagerBugFixed(this,
-                LinearLayoutManager.HORIZONTAL, false));
+                LinearLayoutManager.HORIZONTAL, true).setStackFromEndAndReturnCurrentObject());
         binding.markdownBottomBarRecyclerViewPostVideoActivity.setAdapter(adapter);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isPosting) {
+                    promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
+                } else {
+                    if (!binding.postTitleEditTextPostVideoActivity.getText().toString().isEmpty()
+                            || !binding.postContentEditTextPostVideoActivity.getText().toString().isEmpty()
+                            || videoUri != null) {
+                        promptAlertDialog(R.string.discard, R.string.discard_detail);
+                    } else {
+                        setEnabled(false);
+                        triggerBackPress();
+                    }
+                }
+            }
+        });
     }
 
     private void loadCurrentAccount() {
@@ -515,18 +566,7 @@ public class PostVideoActivity extends BaseActivity implements FlairBottomSheetF
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
         if (itemId == android.R.id.home) {
-            if (isPosting) {
-                promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
-                return true;
-            } else {
-                if (!binding.postTitleEditTextPostVideoActivity.getText().toString().isEmpty()
-                        || !binding.postContentEditTextPostVideoActivity.getText().toString().isEmpty()
-                        || videoUri != null) {
-                    promptAlertDialog(R.string.discard, R.string.discard_detail);
-                    return true;
-                }
-            }
-            finish();
+            triggerBackPress();
             return true;
         } else if (itemId == R.id.action_send_post_video_activity) {
             if (!subredditSelected) {
@@ -604,21 +644,6 @@ public class PostVideoActivity extends BaseActivity implements FlairBottomSheetF
         }
 
         return false;
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (isPosting) {
-            promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
-        } else {
-            if (!binding.postTitleEditTextPostVideoActivity.getText().toString().isEmpty()
-                    || !binding.postContentEditTextPostVideoActivity.getText().toString().isEmpty()
-                    || videoUri != null) {
-                promptAlertDialog(R.string.discard, R.string.discard_detail);
-            } else {
-                finish();
-            }
-        }
     }
 
     @Override

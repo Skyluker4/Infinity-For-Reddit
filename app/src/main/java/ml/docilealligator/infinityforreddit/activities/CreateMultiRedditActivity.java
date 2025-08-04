@@ -2,15 +2,21 @@ package ml.docilealligator.infinityforreddit.activities;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CompoundButton;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.inputmethod.EditorInfoCompat;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -26,11 +32,9 @@ import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
-import ml.docilealligator.infinityforreddit.customviews.slidr.Slidr;
 import ml.docilealligator.infinityforreddit.databinding.ActivityCreateMultiRedditBinding;
 import ml.docilealligator.infinityforreddit.multireddit.CreateMultiReddit;
 import ml.docilealligator.infinityforreddit.multireddit.MultiRedditJSONModel;
-import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
 import retrofit2.Retrofit;
 
@@ -60,7 +64,7 @@ public class CreateMultiRedditActivity extends BaseActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
         
         super.onCreate(savedInstanceState);
         binding = ActivityCreateMultiRedditBinding.inflate(getLayoutInflater());
@@ -68,19 +72,44 @@ public class CreateMultiRedditActivity extends BaseActivity {
 
         applyCustomTheme();
 
-        if (mSharedPreferences.getBoolean(SharedPreferencesUtils.SWIPE_RIGHT_TO_GO_BACK, true)) {
-            Slidr.attach(this);
-        }
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutCreateMultiRedditActivity);
+            }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutCreateMultiRedditActivity);
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                                    | WindowInsetsCompat.Type.ime()
+                    );
+
+                    setMargins(binding.toolbarCreateMultiRedditActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.nestedScrollViewCreateMultiRedditActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarCreateMultiRedditActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         if (accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
-            binding.visibilityWrapperLinearLayoutCreateMultiRedditActivity.setVisibility(View.GONE);
+            binding.visibilityChipCreateMultiRedditActivity.setVisibility(View.GONE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 binding.multiRedditNameEditTextCreateMultiRedditActivity.setImeOptions(binding.multiRedditNameEditTextCreateMultiRedditActivity.getImeOptions() | EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING);
                 binding.descriptionEditTextCreateMultiRedditActivity.setImeOptions(binding.descriptionEditTextCreateMultiRedditActivity.getImeOptions() | EditorInfoCompat.IME_FLAG_NO_PERSONALIZED_LEARNING);
@@ -96,10 +125,22 @@ public class CreateMultiRedditActivity extends BaseActivity {
     }
 
     private void bindView() {
-        binding.selectSubredditTextViewCreateMultiRedditActivity.setOnClickListener(view -> {
+        binding.selectSubredditChipCreateMultiRedditActivity.setOnClickListener(view -> {
             Intent intent = new Intent(CreateMultiRedditActivity.this, SelectedSubredditsAndUsersActivity.class);
             intent.putStringArrayListExtra(SelectedSubredditsAndUsersActivity.EXTRA_SELECTED_SUBREDDITS, mSubreddits);
             startActivityForResult(intent, SUBREDDIT_SELECTION_REQUEST_CODE);
+        });
+
+        binding.visibilityChipCreateMultiRedditActivity.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked) {
+                    binding.visibilityChipCreateMultiRedditActivity.setChipBackgroundColor(ColorStateList.valueOf(mCustomThemeWrapper.getFilledCardViewBackgroundColor()));
+                } else {
+                    //Match the background color
+                    binding.visibilityChipCreateMultiRedditActivity.setChipBackgroundColor(ColorStateList.valueOf(mCustomThemeWrapper.getBackgroundColor()));
+                }
+            }
         });
     }
 
@@ -124,9 +165,9 @@ public class CreateMultiRedditActivity extends BaseActivity {
 
             if (!accountName.equals(Account.ANONYMOUS_ACCOUNT)) {
                 String jsonModel = new MultiRedditJSONModel(binding.multiRedditNameEditTextCreateMultiRedditActivity.getText().toString(), binding.descriptionEditTextCreateMultiRedditActivity.getText().toString(),
-                        binding.visibilitySwitchCreateMultiRedditActivity.isChecked(), mSubreddits).createJSONModel();
-                CreateMultiReddit.createMultiReddit(mOauthRetrofit, mRedditDataRoomDatabase, accessToken,
-                        "/user/" + accountName + "/m/" + binding.multiRedditNameEditTextCreateMultiRedditActivity.getText().toString(),
+                        binding.visibilityChipCreateMultiRedditActivity.isChecked(), mSubreddits).createJSONModel();
+                CreateMultiReddit.createMultiReddit(mExecutor, mHandler, mOauthRetrofit, mRedditDataRoomDatabase,
+                        accessToken, "/user/" + accountName + "/m/" + binding.multiRedditNameEditTextCreateMultiRedditActivity.getText().toString(),
                         jsonModel, new CreateMultiReddit.CreateMultiRedditListener() {
                             @Override
                             public void success() {
@@ -200,19 +241,30 @@ public class CreateMultiRedditActivity extends BaseActivity {
         applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutCreateMultiRedditActivity,
                 binding.collapsingToolbarLayoutCreateMultiRedditActivity, binding.toolbarCreateMultiRedditActivity);
         int primaryTextColor = mCustomThemeWrapper.getPrimaryTextColor();
-        int secondaryTextColor = mCustomThemeWrapper.getSecondaryTextColor();
+        binding.inputCardViewCreateMultiRedditActivity.setCardBackgroundColor(mCustomThemeWrapper.getFilledCardViewBackgroundColor());
+
+        binding.multiRedditNameExplanationTextInputLayoutCreateMultiRedditActivity.setTextColor(primaryTextColor);
+        binding.multiRedditNameTextInputLayoutCreateMultiRedditActivity.setBoxStrokeColor(primaryTextColor);
+        binding.multiRedditNameTextInputLayoutCreateMultiRedditActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.multiRedditNameEditTextCreateMultiRedditActivity.setTextColor(primaryTextColor);
-        binding.multiRedditNameEditTextCreateMultiRedditActivity.setHintTextColor(secondaryTextColor);
-        int dividerColor = mCustomThemeWrapper.getDividerColor();
-        binding.divider1CreateMultiRedditActivity.setBackgroundColor(dividerColor);
-        binding.divider2CreateMultiRedditActivity.setBackgroundColor(dividerColor);
+
+        binding.descriptionTextInputLayoutCreateMultiRedditActivity.setBoxStrokeColor(primaryTextColor);
+        binding.descriptionTextInputLayoutCreateMultiRedditActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.descriptionEditTextCreateMultiRedditActivity.setTextColor(primaryTextColor);
-        binding.descriptionEditTextCreateMultiRedditActivity.setHintTextColor(secondaryTextColor);
-        binding.visibilityTextViewCreateMultiRedditActivity.setTextColor(primaryTextColor);
-        binding.selectSubredditTextViewCreateMultiRedditActivity.setTextColor(primaryTextColor);
+
+
+        binding.selectSubredditChipCreateMultiRedditActivity.setTextColor(primaryTextColor);
+        binding.selectSubredditChipCreateMultiRedditActivity.setChipBackgroundColor(ColorStateList.valueOf(mCustomThemeWrapper.getFilledCardViewBackgroundColor()));
+        binding.selectSubredditChipCreateMultiRedditActivity.setChipStrokeColor(ColorStateList.valueOf(mCustomThemeWrapper.getFilledCardViewBackgroundColor()));
+
+        binding.visibilityChipCreateMultiRedditActivity.setTextColor(primaryTextColor);
+        binding.visibilityChipCreateMultiRedditActivity.setChipBackgroundColor(ColorStateList.valueOf(mCustomThemeWrapper.getFilledCardViewBackgroundColor()));
+        binding.visibilityChipCreateMultiRedditActivity.setChipStrokeColor(ColorStateList.valueOf(mCustomThemeWrapper.getFilledCardViewBackgroundColor()));
 
         if (typeface != null) {
             Utils.setFontToAllTextViews(binding.coordinatorLayoutCreateMultiRedditActivity, typeface);
+            binding.selectSubredditChipCreateMultiRedditActivity.setTypeface(typeface);
+            binding.visibilityChipCreateMultiRedditActivity.setTypeface(typeface);
         }
     }
 }

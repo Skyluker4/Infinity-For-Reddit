@@ -17,6 +17,10 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
@@ -40,7 +44,7 @@ import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RecyclerViewContentScrollingInterface;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.apis.OnlineCustomThemeAPI;
+import ml.docilealligator.infinityforreddit.apis.ServerAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.ChangeThemeName;
 import ml.docilealligator.infinityforreddit.asynctasks.DeleteTheme;
 import ml.docilealligator.infinityforreddit.asynctasks.GetCustomTheme;
@@ -99,7 +103,7 @@ public class CustomThemeListingActivity extends BaseActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
         binding = ActivityCustomThemeListingBinding.inflate(getLayoutInflater());
@@ -108,6 +112,44 @@ public class CustomThemeListingActivity extends BaseActivity implements
         EventBus.getDefault().register(this);
 
         applyCustomTheme();
+
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutCustomizeThemeListingActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                    );
+
+                    setMargins(binding.toolbarCustomizeThemeListingActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.viewPager2CustomizeThemeListingActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            0
+                    );
+
+                    setMargins(binding.fabCustomThemeListingActivity,
+                            BaseActivity.IGNORE_MARGIN,
+                            BaseActivity.IGNORE_MARGIN,
+                            (int) Utils.convertDpToPixel(16, CustomThemeListingActivity.this) + allInsets.right,
+                            (int) Utils.convertDpToPixel(16, CustomThemeListingActivity.this) + allInsets.bottom);
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
+        }
 
         setSupportActionBar(binding.toolbarCustomizeThemeListingActivity);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
@@ -294,7 +336,7 @@ public class CustomThemeListingActivity extends BaseActivity implements
 
     @Override
     public void shareTheme(OnlineCustomThemeMetadata onlineCustomThemeMetadata) {
-        onlineCustomThemesRetrofit.create(OnlineCustomThemeAPI.class)
+        onlineCustomThemesRetrofit.create(ServerAPI.class)
                 .getCustomTheme(onlineCustomThemeMetadata.name, onlineCustomThemeMetadata.username)
                 .enqueue(new Callback<>() {
                     @Override

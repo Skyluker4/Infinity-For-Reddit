@@ -44,10 +44,6 @@
         <item name="android:fontFamily">?attr/font_family</item>
     </style>
 
-    <style name="AppTheme.TranslucentStatusBar" parent="AppTheme">
-        <item name="android:windowTranslucentStatus">true</item>
-    </style>
-
     <style name="AppTheme.AppBarOverlay" parent="ThemeOverlay.AppCompat.DayNight.ActionBar">
         <item name="android:fontFamily">?attr/font_family</item>
     </style>
@@ -55,8 +51,10 @@
     <style name="AppTheme.PopupOverlay" parent="ThemeOverlay.AppCompat.DayNight" />
 
     <style name="MaterialAlertDialogTheme" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <!-- android:background for dialogs causes a bug where selection toolbar is oversized -->
+        <item name="android:backgroundTint">?attr/cardViewBackgroundColor</item>
+        <item name="colorBackgroundFloating">?attr/cardViewBackgroundColor</item>
         <item name="android:textSize">?attr/font_default</item>
-        <item name="android:background">?attr/cardViewBackgroundColor</item>
         <item name="materialAlertDialogTitleTextStyle">@style/MaterialAlertDialogTitleTextStyle
         </item>
         <item name="materialAlertDialogBodyTextStyle">@style/MaterialAlertDialogBodyTextStyle</item>
@@ -116,7 +114,9 @@
     </style>
 
     <style name="ListPreferenceStyle" parent="ThemeOverlay.AppCompat.Dialog.Alert">
-        <item name="android:background">?attr/cardViewBackgroundColor</item>
+        <!-- android:background for dialogs causes a bug where selection toolbar is oversized -->
+        <item name="android:backgroundTint">?attr/cardViewBackgroundColor</item>
+        <item name="colorBackgroundFloating">?attr/cardViewBackgroundColor</item>
     </style>
     
     <style name="Widget.App.CheckBox.Dark" parent="Widget.Material3.CompoundButton.CheckBox">
@@ -534,12 +534,12 @@
     </style>
 
     <style name="ToroMediaButton.VolumeUp">
-        <item name="android:src">@drawable/ic_volume_up_black_24dp</item>
+        <item name="android:src">@drawable/ic_volume_up_32dp</item>
         <item name="android:contentDescription">@string/exo_controls_volume_up_description</item>
     </style>
 
     <style name="ToroMediaButton.VolumeOff">
-        <item name="android:src">@drawable/ic_volume_off_black_24dp</item>
+        <item name="android:src">@drawable/ic_volume_off_32dp</item>
         <item name="android:contentDescription">@string/exo_controls_volume_off_description</item>
     </style>
 

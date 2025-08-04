@@ -2,12 +2,16 @@ package ml.docilealligator.infinityforreddit.activities;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.MenuItem;
+import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.transition.AutoTransition;
 import androidx.transition.TransitionManager;
 
@@ -24,7 +28,6 @@ import java.util.concurrent.Executor;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-import ml.docilealligator.infinityforreddit.ActivityToolbarInterface;
 import ml.docilealligator.infinityforreddit.Infinity;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
@@ -83,7 +86,7 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
 
@@ -96,8 +99,36 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutViewPrivateMessagesActivity);
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutViewPrivateMessagesActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                                    | WindowInsetsCompat.Type.ime()
+                    );
+
+                    setMargins(binding.toolbarViewPrivateMessagesActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.linearLayoutViewPrivateMessagesActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom);
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarViewPrivateMessagesActivity);
@@ -159,9 +190,9 @@ public class ViewPrivateMessagesActivity extends BaseActivity implements Activit
                         }
                         isSendingMessage = true;
                         binding.sendImageViewViewPrivateMessagesActivity.setColorFilter(mSecondaryTextColor, android.graphics.PorterDuff.Mode.SRC_IN);
-                        ReplyMessage.replyMessage(binding.editTextViewPrivateMessagesActivity.getText().toString(), replyTo.getFullname(),
-                                getResources().getConfiguration().locale, mOauthRetrofit, accessToken,
-                                new ReplyMessage.ReplyMessageListener() {
+                        ReplyMessage.replyMessage(mExecutor, mHandler, binding.editTextViewPrivateMessagesActivity.getText().toString(),
+                                replyTo.getFullname(), getResources().getConfiguration().locale,
+                                mOauthRetrofit, accessToken, new ReplyMessage.ReplyMessageListener() {
                                     @Override
                                     public void replyMessageSuccess(Message message) {
                                         if (mAdapter != null) {

@@ -10,7 +10,7 @@ import androidx.preference.SwitchPreference;
 import org.greenrobot.eventbus.EventBus;
 
 import ml.docilealligator.infinityforreddit.R;
-import ml.docilealligator.infinityforreddit.customviews.CustomFontPreferenceFragmentCompat;
+import ml.docilealligator.infinityforreddit.customviews.preference.CustomFontPreferenceFragmentCompat;
 import ml.docilealligator.infinityforreddit.events.ChangeHideFabInPostFeedEvent;
 import ml.docilealligator.infinityforreddit.events.ChangeVoteButtonsPositionEvent;
 import ml.docilealligator.infinityforreddit.events.RecreateActivityEvent;
@@ -26,7 +26,7 @@ public class InterfacePreferenceFragment extends CustomFontPreferenceFragmentCom
         SwitchPreference bottomAppBarSwitch = findPreference(SharedPreferencesUtils.BOTTOM_APP_BAR_KEY);
         SwitchPreference voteButtonsOnTheRightSwitch = findPreference(SharedPreferencesUtils.VOTE_BUTTONS_ON_THE_RIGHT_KEY);
 
-        if (immersiveInterfaceEntryPreference != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (immersiveInterfaceEntryPreference != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             immersiveInterfaceEntryPreference.setVisible(true);
         }
 

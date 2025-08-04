@@ -1,5 +1,7 @@
 package ml.docilealligator.infinityforreddit.user;
 
+import android.os.Handler;
+
 import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -9,8 +11,10 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.paging.LivePagedListBuilder;
 import androidx.paging.PagedList;
 
+import java.util.concurrent.Executor;
+
 import ml.docilealligator.infinityforreddit.NetworkState;
-import ml.docilealligator.infinityforreddit.SortType;
+import ml.docilealligator.infinityforreddit.thing.SortType;
 import retrofit2.Retrofit;
 
 public class UserListingViewModel extends ViewModel {
@@ -21,8 +25,8 @@ public class UserListingViewModel extends ViewModel {
     private final LiveData<PagedList<UserData>> users;
     private final MutableLiveData<SortType> sortTypeLiveData;
 
-    public UserListingViewModel(Retrofit retrofit, String query, SortType sortType, boolean nsfw) {
-        userListingDataSourceFactory = new UserListingDataSourceFactory(retrofit, query, sortType, nsfw);
+    public UserListingViewModel(Executor executor, Handler handler, Retrofit retrofit, String query, SortType sortType, boolean nsfw) {
+        userListingDataSourceFactory = new UserListingDataSourceFactory(executor, handler, retrofit, query, sortType, nsfw);
 
         initialLoadingState = Transformations.switchMap(userListingDataSourceFactory.getUserListingDataSourceMutableLiveData(),
                 UserListingDataSource::getInitialLoadStateLiveData);
@@ -74,12 +78,16 @@ public class UserListingViewModel extends ViewModel {
     }
 
     public static class Factory extends ViewModelProvider.NewInstanceFactory {
+        private final Executor executor;
+        private final Handler handler;
         private final Retrofit retrofit;
         private final String query;
         private final SortType sortType;
         private final boolean nsfw;
 
-        public Factory(Retrofit retrofit, String query, SortType sortType, boolean nsfw) {
+        public Factory(Executor executor, Handler handler, Retrofit retrofit, String query, SortType sortType, boolean nsfw) {
+            this.executor = executor;
+            this.handler = handler;
             this.retrofit = retrofit;
             this.query = query;
             this.sortType = sortType;
@@ -89,7 +97,7 @@ public class UserListingViewModel extends ViewModel {
         @NonNull
         @Override
         public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
-            return (T) new UserListingViewModel(retrofit, query, sortType, nsfw);
+            return (T) new UserListingViewModel(executor, handler, retrofit, query, sortType, nsfw);
         }
     }
 }

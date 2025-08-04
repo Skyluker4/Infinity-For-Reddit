@@ -24,10 +24,14 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.bumptech.glide.Glide;
@@ -51,14 +55,13 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 import jp.wasabeef.glide.transformations.RoundedCornersTransformation;
-import ml.docilealligator.infinityforreddit.Flair;
+import ml.docilealligator.infinityforreddit.subreddit.Flair;
 import ml.docilealligator.infinityforreddit.Infinity;
-import ml.docilealligator.infinityforreddit.PollPayload;
+import ml.docilealligator.infinityforreddit.post.PollPayload;
 import ml.docilealligator.infinityforreddit.R;
 import ml.docilealligator.infinityforreddit.RedditDataRoomDatabase;
-import ml.docilealligator.infinityforreddit.SelectThingReturnKey;
-import ml.docilealligator.infinityforreddit.UploadImageEnabledActivity;
-import ml.docilealligator.infinityforreddit.UploadedImage;
+import ml.docilealligator.infinityforreddit.thing.SelectThingReturnKey;
+import ml.docilealligator.infinityforreddit.thing.UploadedImage;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.adapters.MarkdownBottomBarRecyclerViewAdapter;
 import ml.docilealligator.infinityforreddit.asynctasks.LoadSubredditIcon;
@@ -148,7 +151,7 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
     protected void onCreate(Bundle savedInstanceState) {
         ((Infinity) getApplication()).getAppComponent().inject(this);
 
-        setImmersiveModeNotApplicable();
+        setImmersiveModeNotApplicableBelowAndroid16();
 
         super.onCreate(savedInstanceState);
         binding = ActivityPostPollBinding.inflate(getLayoutInflater());
@@ -158,8 +161,37 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
 
         applyCustomTheme();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && isChangeStatusBarIconColor()) {
-            addOnOffsetChangedListener(binding.appbarLayoutPostPollActivity);
+        if (isImmersiveInterface()) {
+            if (isChangeStatusBarIconColor()) {
+                addOnOffsetChangedListener(binding.appbarLayoutPostPollActivity);
+            }
+
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = insets.getInsets(
+                            WindowInsetsCompat.Type.systemBars()
+                                    | WindowInsetsCompat.Type.displayCutout()
+                                    | WindowInsetsCompat.Type.ime()
+                    );
+
+                    setMargins(binding.toolbarPostPollActivity,
+                            allInsets.left,
+                            allInsets.top,
+                            allInsets.right,
+                            BaseActivity.IGNORE_MARGIN);
+
+                    binding.linearLayoutPostPollActivity.setPadding(
+                            allInsets.left,
+                            0,
+                            allInsets.right,
+                            allInsets.bottom
+                    );
+
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
         }
 
         setSupportActionBar(binding.toolbarPostPollActivity);
@@ -346,8 +378,31 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
                 });
 
         binding.markdownBottomBarRecyclerViewPostPollActivity.setLayoutManager(new LinearLayoutManagerBugFixed(this,
-                LinearLayoutManager.HORIZONTAL, false));
+                LinearLayoutManager.HORIZONTAL, true).setStackFromEndAndReturnCurrentObject());
         binding.markdownBottomBarRecyclerViewPostPollActivity.setAdapter(adapter);
+
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isPosting) {
+                    promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
+                } else {
+                    if (!binding.postTitleEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.postContentEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.option1TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.option2TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.option3TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.option4TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.option5TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
+                            || !binding.option6TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()) {
+                        promptAlertDialog(R.string.discard, R.string.discard_detail);
+                    } else {
+                        setEnabled(false);
+                        triggerBackPress();
+                    }
+                }
+            }
+        });
     }
 
     private void loadCurrentAccount() {
@@ -412,6 +467,7 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
         binding.postTitleEditTextPostPollActivity.setHintTextColor(secondaryTextColor);
         binding.postContentEditTextPostPollActivity.setTextColor(primaryTextColor);
         binding.postContentEditTextPostPollActivity.setHintTextColor(secondaryTextColor);
+        binding.votingLengthTextViewPostPollActivity.setTextColor(secondaryTextColor);
         binding.option1TextInputLayoutPostPollActivity.setBoxStrokeColor(primaryTextColor);
         binding.option1TextInputLayoutPostPollActivity.setDefaultHintTextColor(ColorStateList.valueOf(primaryTextColor));
         binding.option1TextInputLayoutEditTextPostPollActivity.setTextColor(primaryTextColor);
@@ -541,23 +597,7 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         int itemId = item.getItemId();
         if (itemId == android.R.id.home) {
-            if (isPosting) {
-                promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
-                return true;
-            } else {
-                if (!binding.postTitleEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.postContentEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.option1TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.option2TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.option3TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.option4TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.option5TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                        || !binding.option6TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()) {
-                    promptAlertDialog(R.string.discard, R.string.discard_detail);
-                    return true;
-                }
-            }
-            finish();
+            triggerBackPress();
             return true;
         } else if (itemId == R.id.action_preview_post_poll_activity) {
             Intent intent = new Intent(this, FullMarkdownActivity.class);
@@ -622,41 +662,6 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
 
         mPostingSnackbar.show();
 
-        /*Intent intent = new Intent(this, SubmitPostService.class);
-        intent.putExtra(SubmitPostService.EXTRA_ACCOUNT, selectedAccount);
-        intent.putExtra(SubmitPostService.EXTRA_SUBREDDIT_NAME, subredditName);
-        intent.putExtra(SubmitPostService.EXTRA_POST_TYPE, SubmitPostService.EXTRA_POST_TYPE_POLL);
-
-        PollPayload payload;
-        if (!binding.postContentEditTextPostPollActivity.getText().toString().isEmpty()) {
-            if (uploadedImages.isEmpty()) {
-                payload = new PollPayload(subredditName, binding.postTitleEditTextPostPollActivity.getText().toString(),
-                        optionList.toArray(new String[0]), (int) binding.votingLengthSliderPostPollActivity.getValue(), isNSFW, isSpoiler, flair,
-                        null, binding.postContentEditTextPostPollActivity.getText().toString(),
-                        binding.receivePostReplyNotificationsSwitchMaterialPostPollActivity.isChecked(),
-                        subredditIsUser ? "profile" : "subreddit");
-            } else {
-                try {
-                    payload = new PollPayload(subredditName, binding.postTitleEditTextPostPollActivity.getText().toString(),
-                            optionList.toArray(new String[0]), (int) binding.votingLengthSliderPostPollActivity.getValue(), isNSFW, isSpoiler, flair,
-                            new RichTextJSONConverter().constructRichTextJSON(this, binding.postContentEditTextPostPollActivity.getText().toString(), uploadedImages),
-                            null, binding.receivePostReplyNotificationsSwitchMaterialPostPollActivity.isChecked(),
-                            subredditIsUser ? "profile" : "subreddit");
-                } catch (JSONException e) {
-                    Snackbar.make(binding.coordinatorLayoutPostPollActivity, R.string.convert_to_richtext_json_failed, Snackbar.LENGTH_SHORT).show();
-                    return;
-                }
-            }
-        } else {
-            payload = new PollPayload(subredditName, binding.postTitleEditTextPostPollActivity.getText().toString(),
-                    optionList.toArray(new String[0]), (int) binding.votingLengthSliderPostPollActivity.getValue(), isNSFW, isSpoiler, flair,
-                    binding.receivePostReplyNotificationsSwitchMaterialPostPollActivity.isChecked(),
-                    subredditIsUser ? "profile" : "subreddit");
-        }
-        intent.putExtra(SubmitPostService.EXTRA_POLL_PAYLOAD, new Gson().toJson(payload));
-
-        ContextCompat.startForegroundService(this, intent);*/
-
         PersistableBundle extras = new PersistableBundle();
         extras.putString(SubmitPostService.EXTRA_ACCOUNT, selectedAccount.getJSONModel());
         extras.putString(SubmitPostService.EXTRA_SUBREDDIT_NAME, subredditName);
@@ -694,26 +699,6 @@ public class PostPollActivity extends BaseActivity implements FlairBottomSheetFr
 
         JobInfo jobInfo = SubmitPostService.constructJobInfo(this, payloadJSON.length() * 2L, extras);
         ((JobScheduler) getSystemService(Context.JOB_SCHEDULER_SERVICE)).schedule(jobInfo);
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (isPosting) {
-            promptAlertDialog(R.string.exit_when_submit, R.string.exit_when_submit_post_detail);
-        } else {
-            if (!binding.postTitleEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.postContentEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.option1TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.option2TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.option3TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.option4TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.option5TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()
-                    || !binding.option6TextInputLayoutEditTextPostPollActivity.getText().toString().isEmpty()) {
-                promptAlertDialog(R.string.discard, R.string.discard_detail);
-            } else {
-                finish();
-            }
-        }
     }
 
     @Override

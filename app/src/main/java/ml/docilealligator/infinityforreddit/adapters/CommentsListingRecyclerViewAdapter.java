@@ -34,8 +34,9 @@ import io.noties.markwon.MarkwonPlugin;
 import io.noties.markwon.core.MarkwonTheme;
 import ml.docilealligator.infinityforreddit.NetworkState;
 import ml.docilealligator.infinityforreddit.R;
-import ml.docilealligator.infinityforreddit.SaveThing;
-import ml.docilealligator.infinityforreddit.VoteThing;
+import ml.docilealligator.infinityforreddit.fragments.CommentsListingFragment;
+import ml.docilealligator.infinityforreddit.thing.SaveThing;
+import ml.docilealligator.infinityforreddit.thing.VoteThing;
 import ml.docilealligator.infinityforreddit.account.Account;
 import ml.docilealligator.infinityforreddit.activities.BaseActivity;
 import ml.docilealligator.infinityforreddit.activities.LinkResolverActivity;
@@ -82,6 +83,7 @@ public class CommentsListingRecyclerViewAdapter extends PagedListAdapter<Comment
         }
     };
     private final BaseActivity mActivity;
+    private final CommentsListingFragment mFragment;
     private final Retrofit mOauthRetrofit;
     private final Locale mLocale;
     private final EmoteCloseBracketInlineProcessor mEmoteCloseBracketInlineProcessor;
@@ -114,13 +116,15 @@ public class CommentsListingRecyclerViewAdapter extends PagedListAdapter<Comment
     private NetworkState networkState;
     private final RetryLoadingMoreCallback mRetryLoadingMoreCallback;
 
-    public CommentsListingRecyclerViewAdapter(BaseActivity activity, Retrofit oauthRetrofit,
+    public CommentsListingRecyclerViewAdapter(BaseActivity activity, CommentsListingFragment fragment,
+                                              Retrofit oauthRetrofit,
                                               CustomThemeWrapper customThemeWrapper, Locale locale,
                                               SharedPreferences sharedPreferences, String accessToken,
                                               @NonNull String accountName, String username,
                                               RetryLoadingMoreCallback retryLoadingMoreCallback) {
         super(DIFF_CALLBACK);
         mActivity = activity;
+        mFragment = fragment;
         mOauthRetrofit = oauthRetrofit;
         mCommentColor = customThemeWrapper.getCommentColor();
         int commentSpoilerBackgroundColor = mCommentColor | 0xFF000000;
@@ -365,10 +369,34 @@ public class CommentsListingRecyclerViewAdapter extends PagedListAdapter<Comment
         }
     }
 
+    public void editComment(Comment comment, int position) {
+        Comment oldComment = getItem(position);
+        if (oldComment != null) {
+            oldComment.setCommentMarkdown(comment.getCommentMarkdown());
+            oldComment.setMediaMetadataMap(comment.getMediaMetadataMap());
+            notifyItemChanged(position);
+        }
+    }
+
     public void editComment(String commentContentMarkdown, int position) {
         Comment comment = getItem(position);
         if (comment != null) {
             comment.setCommentMarkdown(commentContentMarkdown);
+            notifyItemChanged(position);
+        }
+    }
+
+    public void toggleReplyNotifications(int position) {
+        Comment comment = getItem(position);
+        if (comment != null) {
+            comment.toggleSendReplies();
+            notifyItemChanged(position);
+        }
+    }
+
+    public void updateModdedStatus(int position) {
+        Comment originalComment = getItem(position);
+        if (originalComment != null) {
             notifyItemChanged(position);
         }
     }
@@ -533,7 +561,7 @@ public class CommentsListingRecyclerViewAdapter extends PagedListAdapter<Comment
                     bundle.putInt(CommentMoreBottomSheetFragment.EXTRA_POSITION, getBindingAdapterPosition());
                     CommentMoreBottomSheetFragment commentMoreBottomSheetFragment = new CommentMoreBottomSheetFragment();
                     commentMoreBottomSheetFragment.setArguments(bundle);
-                    commentMoreBottomSheetFragment.show(mActivity.getSupportFragmentManager(), commentMoreBottomSheetFragment.getTag());
+                    commentMoreBottomSheetFragment.show(mFragment.getChildFragmentManager(), commentMoreBottomSheetFragment.getTag());
                 }
             });
 
@@ -834,7 +862,7 @@ public class CommentsListingRecyclerViewAdapter extends PagedListAdapter<Comment
 
         LoadingViewHolder(@NonNull ItemFooterLoadingBinding binding) {
             super(binding.getRoot());
-            binding.progressBarItemFooterLoading.setIndeterminateTintList(ColorStateList.valueOf(mColorAccent));
+            binding.progressBarItemFooterLoading.setIndicatorColor(mColorAccent);
         }
     }
 }
