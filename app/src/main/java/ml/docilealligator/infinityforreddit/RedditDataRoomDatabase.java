@@ -46,7 +46,7 @@ import ml.docilealligator.infinityforreddit.user.UserData;
 @Database(entities = {Account.class, SubredditData.class, SubscribedSubredditData.class, UserData.class,
         SubscribedUserData.class, MultiReddit.class, CustomTheme.class, RecentSearchQuery.class,
         ReadPost.class, PostFilter.class, PostFilterUsage.class, AnonymousMultiredditSubreddit.class,
-        CommentFilter.class, CommentFilterUsage.class, CommentDraft.class}, version = 29, exportSchema = false)
+        CommentFilter.class, CommentFilterUsage.class, CommentDraft.class}, version = 30, exportSchema = false)
 @TypeConverters(Converters.class)
 public abstract class RedditDataRoomDatabase extends RoomDatabase {
 
@@ -59,7 +59,8 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
                         MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
                         MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
-                        MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29)
+                        MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29,
+                        MIGRATION_29_30)
                 .build();
     }
 
@@ -454,6 +455,71 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
                     "last_updated INTEGER NOT NULL," +
                     "draft_type TEXT NOT NULL," +
                     "PRIMARY KEY (full_name, draft_type))");
+        }
+    };
+
+    private static final Migration MIGRATION_29_30 = new Migration(29, 30) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // Create a temporary table with the correct schema
+            database.execSQL("CREATE TABLE recent_search_queries_temp(" +
+                    "username TEXT NOT NULL, " +
+                    "search_query TEXT NOT NULL, " +
+                    "time INTEGER NOT NULL, " +
+                    "search_in_subreddit_or_user_name TEXT, " +
+                    "search_in_multireddit_path TEXT, " +
+                    "search_in_multireddit_display_name TEXT, " +
+                    "search_in_thing_type INTEGER NOT NULL, " +
+                    "PRIMARY KEY(username, search_query), " +
+                    "FOREIGN KEY(username) REFERENCES accounts(username) ON DELETE CASCADE)");
+
+            // Check which columns exist in the current table
+            Cursor cursor = database.query("PRAGMA table_info(recent_search_queries)");
+            boolean hasTime = false;
+            boolean hasSubredditOrUser = false;
+            boolean hasMultiRedditPath = false;
+            boolean hasMultiRedditDisplayName = false;
+            boolean hasThingType = false;
+
+            while (cursor.moveToNext()) {
+                String columnName = cursor.getString(1); // Column name is at index 1
+                switch (columnName) {
+                    case "time":
+                        hasTime = true;
+                        break;
+                    case "search_in_subreddit_or_user_name":
+                        hasSubredditOrUser = true;
+                        break;
+                    case "search_in_multireddit_path":
+                        hasMultiRedditPath = true;
+                        break;
+                    case "search_in_multireddit_display_name":
+                        hasMultiRedditDisplayName = true;
+                        break;
+                    case "search_in_thing_type":
+                        hasThingType = true;
+                        break;
+                }
+            }
+            cursor.close();
+
+            // Build the SELECT statement based on available columns
+            String selectColumns = "username, search_query, " +
+                    (hasTime ? "time" : "0 as time") + ", " +
+                    (hasSubredditOrUser ? "search_in_subreddit_or_user_name" : "NULL as search_in_subreddit_or_user_name") + ", " +
+                    (hasMultiRedditPath ? "search_in_multireddit_path" : "NULL as search_in_multireddit_path") + ", " +
+                    (hasMultiRedditDisplayName ? "search_in_multireddit_display_name" : "NULL as search_in_multireddit_display_name") + ", " +
+                    (hasThingType ? "search_in_thing_type" : "0 as search_in_thing_type");
+
+            // Copy existing data with only the columns that exist
+            database.execSQL("INSERT INTO recent_search_queries_temp " +
+                    "(username, search_query, time, search_in_subreddit_or_user_name, " +
+                    "search_in_multireddit_path, search_in_multireddit_display_name, search_in_thing_type) " +
+                    "SELECT " + selectColumns + " FROM recent_search_queries");
+
+            // Drop the old table and rename the temp table
+            database.execSQL("DROP TABLE recent_search_queries");
+            database.execSQL("ALTER TABLE recent_search_queries_temp RENAME TO recent_search_queries");
         }
     };
 }
