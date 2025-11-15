@@ -53,7 +53,7 @@
 
     <string name="action_download">Download</string>
     <string name="action_refresh">Refresh</string>
-    <string name="action_add_comment">Add a comment</string>
+    <string name="action_add_comment">Send comment</string>
     <string name="action_save_post">Save post</string>
     <string name="action_view_crosspost_parent">View crosspost parent</string>
     <string name="action_search">Search</string>
@@ -250,6 +250,7 @@
     <string name="no_camera_available">No camera app available</string>
     <string name="error_creating_temp_file">Error creating temp file</string>
 
+    <string name="submit_video_or_gif_post_failed_cannot_get_cache_directory">Unable to submit post: cannot access cache directory</string>
     <string name="video_is_processing">Video is processing. Please wait.</string>
     <string name="image_is_processing">Image is processing. Please wait.</string>
     <string name="gif_is_processing">Gif is processing. Please wait.</string>
@@ -579,6 +580,7 @@
     <string name="settings_mark_posts_as_read_after_voting_title">Mark Posts as Read After Voting</string>
     <string name="settings_mark_posts_as_read_on_scroll_title">Mark Posts as Read on Scroll</string>
     <string name="settings_hide_read_posts_automatically_title">Hide Read Posts Automatically</string>
+    <string name="settings_hide_read_posts_automatically_summary">The setting is not applied when viewing posts from searches, specific users, or subreddits.</string>
     <string name="settings_sort_type_title">Sort Type</string>
     <string name="settings_save_sort_type_title">Save Sort Type</string>
     <string name="settings_subreddit_default_sort_type_title">Subreddit Default Sort Type</string>
@@ -1065,9 +1067,9 @@
 
     <string name="downloading">Downloading</string>
     <string name="downloading_media_finished">Downloaded</string>
-    <string name="downloading_image_or_gif_failed_cannot_get_destination_directory">Download failed: cannot access destination directory</string>
+    <string name="downloading_image_or_gif_failed_cannot_get_destination_directory">Download failed: cannot access destination directory. Please reselect your preferred download location in Settings->Download Location.</string>
     <string name="downloading_media_failed_cannot_download_media">Download failed</string>
-    <string name="downloading_media_failed_cannot_save_to_destination_directory">Download failed: cannot save the file to destination directory</string>
+    <string name="downloading_media_failed_cannot_save_to_destination_directory">Download failed: cannot save the file to destination directory. Please reselect your preferred download location in Settings->Download Location.</string>
     <string name="download_media_failed_cannot_fetch_redgifs_url">Download failed: cannot fetch Redgifs video url</string>
     <string name="download_media_failed_cannot_fetch_streamable_url">Download failed: cannot fetch Streamable video url</string>
     <string name="download_media_failed_invalid_argument">Invalid argument</string>
@@ -1146,7 +1148,9 @@
     <string name="title_excludes_regex_hint">Title: excludes regex</string>
     <string name="title_contains_regex_hint">Title: contains regex</string>
     <string name="exclude_subreddits_hint">Exclude subreddits (e.g. funny,AskReddit)</string>
+    <string name="contain_subreddits_hint">Contain subreddits (e.g. funny,AskReddit)</string>
     <string name="exclude_users_hint">Exclude users (e.g. Hostilenemy,random)</string>
+    <string name="contain_users_hint">Contain users (e.g. Hostilenemy,random)</string>
     <string name="exclude_flairs_hint">Exclude flairs (e.g. flair1,flair2)</string>
     <string name="contain_flairs_hint">Contain flairs (e.g. flair1,flair2)</string>
     <string name="exclude_domains_hint">Exclude domains</string>
@@ -1186,7 +1190,9 @@
     <string name="post_filter_title_excludes_regex_explanation">Posts will be filtered out if their title matches the following regular expression.</string>
     <string name="post_filter_title_contains_regex_explanation">Posts will be filtered out if their title does not match the following regular expression.</string>
     <string name="post_filter_exclude_subreddits_explanation">Posts from the following subreddits will be filtered out.</string>
+    <string name="post_filter_contain_subreddits_explanation">Posts will be filtered out if they are not from the following subreddits.</string>
     <string name="post_filter_exclude_users_explanation">Posts submitted by the following users will be filtered out.</string>
+    <string name="post_filter_contain_users_explanation">Posts will be filtered out if they are not from the following users.</string>
     <string name="post_filter_exclude_flairs_explanation">Posts that have the following flairs will be filtered out.</string>
     <string name="post_filter_contain_flairs_explanation">Posts that do not have the following flairs will be filtered out.</string>
     <string name="post_filter_exclude_domains_explanation">Link posts that have the following urls will be filtered out.</string>
@@ -1228,6 +1234,7 @@
     <string name="restore_settings_partially_failed">Some settings may not be restored successfully. Restart the app to see the changes.</string>
     <string name="restore_settings_failed_file_corrupted">Cannot restore settings. The file may be corrupted.</string>
     <string name="restore_settings_failed_cannot_get_file">Cannot access the file</string>
+    <string name="restore_settings_failed_cannot_get_cache_dir">Cannot access cache directory</string>
 
     <string name="suicide_prevention_quote">If you are looking for a sign not to kill yourself, this is it.\u2764</string>
     <string name="do_not_show_this_again">Don\'t show this again</string>
@@ -1253,7 +1260,9 @@
 
     <string name="select">Select</string>
     <string name="exclude_subreddit">Exclude this subreddit</string>
+    <string name="contain_subreddit">Contain this subreddit</string>
     <string name="exclude_user">Exclude this user</string>
+    <string name="contain_user">Contain this user</string>
     <string name="exclude_flair">Exclude this flair</string>
     <string name="contain_flair">Contain this flair</string>
     <string name="exclude_domain">Exclude this domain</string>

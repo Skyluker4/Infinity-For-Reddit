@@ -53,6 +53,7 @@ import ml.docilealligator.infinityforreddit.broadcastreceivers.DownloadedMediaDe
 import ml.docilealligator.infinityforreddit.customtheme.CustomThemeWrapper;
 import ml.docilealligator.infinityforreddit.utils.NotificationUtils;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
+import ml.docilealligator.infinityforreddit.utils.Utils;
 import okhttp3.OkHttpClient;
 import okhttp3.ResponseBody;
 import retrofit2.Response;
@@ -87,7 +88,7 @@ public class DownloadRedditVideoService extends JobService {
     @Inject
     Executor executor;
     private NotificationManagerCompat notificationManager;
-    private final String[] possibleAudioUrlSuffices = new String[]{"/DASH_AUDIO_128.mp4", "/DASH_audio.mp4", "/DASH_audio", "/audio.mp4", "/audio"};
+    private final String[] possibleAudioUrlSuffices = new String[]{"/CMAF_AUDIO_128.mp4", "/CMAF_AUDIO_64.mp4", "/DASH_AUDIO_128.mp4", "/DASH_audio.mp4", "/DASH_audio", "/audio.mp4", "/audio"};
 
     public DownloadRedditVideoService() {
     }
@@ -181,7 +182,7 @@ public class DownloadRedditVideoService extends JobService {
 
             boolean separateDownloadFolder = sharedPreferences.getBoolean(SharedPreferencesUtils.SEPARATE_FOLDER_FOR_EACH_SUBREDDIT, false);
 
-            File externalCacheDirectory = getExternalCacheDir();
+            File externalCacheDirectory = Utils.getCacheDir(this);
             if (externalCacheDirectory != null) {
                 String destinationFileName = fileNameWithoutExtension + ".mp4";
                 String finalFileNameWithoutExtension = fileNameWithoutExtension;
@@ -638,6 +639,7 @@ public class DownloadRedditVideoService extends JobService {
             }
             if (contentStringResId != 0) {
                 builder.setContentText(getString(contentStringResId));
+                builder.setStyle(new NotificationCompat.BigTextStyle().bigText(getString(contentStringResId)));
             }
             if (mediaUri != null) {
                 int pendingIntentFlags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE : PendingIntent.FLAG_CANCEL_CURRENT;

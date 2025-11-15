@@ -2,6 +2,7 @@ package ml.docilealligator.infinityforreddit.adapters;
 
 import static ml.docilealligator.infinityforreddit.activities.CommentActivity.WRITE_COMMENT_REQUEST_CODE;
 
+import android.app.Dialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
@@ -27,11 +28,14 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.constraintlayout.widget.ConstraintSet;
+import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.common.util.Util;
@@ -39,6 +43,7 @@ import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.DefaultTimeBar;
 import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.TimeBar;
+import androidx.media3.ui.TrackSelectionDialogBuilder;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
@@ -82,7 +87,6 @@ import ml.docilealligator.infinityforreddit.activities.ViewRedditGalleryActivity
 import ml.docilealligator.infinityforreddit.activities.ViewSubredditDetailActivity;
 import ml.docilealligator.infinityforreddit.activities.ViewUserDetailActivity;
 import ml.docilealligator.infinityforreddit.activities.ViewVideoActivity;
-import ml.docilealligator.infinityforreddit.apis.RedgifsAPI;
 import ml.docilealligator.infinityforreddit.apis.StreamableAPI;
 import ml.docilealligator.infinityforreddit.asynctasks.LoadSubredditIcon;
 import ml.docilealligator.infinityforreddit.asynctasks.LoadUserData;
@@ -114,7 +118,6 @@ import ml.docilealligator.infinityforreddit.markdown.MarkdownUtils;
 import ml.docilealligator.infinityforreddit.post.FetchStreamableVideo;
 import ml.docilealligator.infinityforreddit.post.Post;
 import ml.docilealligator.infinityforreddit.post.PostPagingSource;
-import ml.docilealligator.infinityforreddit.thing.FetchRedgifsVideoLinks;
 import ml.docilealligator.infinityforreddit.thing.SaveThing;
 import ml.docilealligator.infinityforreddit.thing.StreamableVideo;
 import ml.docilealligator.infinityforreddit.thing.VoteThing;
@@ -188,6 +191,8 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
     private final boolean mSeparatePostAndComments;
     private final boolean mLegacyAutoplayVideoControllerUI;
     private final boolean mEasierToWatchInFullScreen;
+    private final int mDataSavingModeDefaultResolution;
+    private final int mNonDataSavingModeDefaultResolution;
     private final PostDetailRecyclerViewAdapterCallback mPostDetailRecyclerViewAdapterCallback;
 
     private final int mColorAccent;
@@ -258,6 +263,9 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
         mSeparatePostAndComments = separatePostAndComments;
         mLegacyAutoplayVideoControllerUI = sharedPreferences.getBoolean(SharedPreferencesUtils.LEGACY_AUTOPLAY_VIDEO_CONTROLLER_UI, false);
         mEasierToWatchInFullScreen = sharedPreferences.getBoolean(SharedPreferencesUtils.EASIER_TO_WATCH_IN_FULL_SCREEN, false);
+        mDataSavingModeDefaultResolution = Integer.parseInt(sharedPreferences.getString(SharedPreferencesUtils.REDDIT_VIDEO_DEFAULT_RESOLUTION, "360"));
+        mNonDataSavingModeDefaultResolution = Integer.parseInt(sharedPreferences.getString(SharedPreferencesUtils.REDDIT_VIDEO_DEFAULT_RESOLUTION_NO_DATA_SAVING, "0"));
+
         mAccessToken = accessToken;
         mAccountName = accountName;
         mPost = post;
@@ -529,10 +537,10 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
             if (mPost.getSubredditNamePrefixed().startsWith("u/")) {
                 if (mPost.getAuthorIconUrl() == null) {
                     String authorName = mPost.isAuthorDeleted() ? mPost.getSubredditNamePrefixed().substring(2) : mPost.getAuthor();
-                    LoadUserData.loadUserData(mExecutor, new Handler(), mRedditDataRoomDatabase,
-                            authorName, mRetrofit, iconImageUrl -> {
+                    LoadUserData.loadUserData(mExecutor, new Handler(), mRedditDataRoomDatabase, mAccessToken,
+                            authorName, mOauthRetrofit, mRetrofit, iconImageUrl -> {
                         if (mActivity != null && getItemCount() > 0) {
-                            if (iconImageUrl == null || iconImageUrl.equals("")) {
+                            if (iconImageUrl == null || iconImageUrl.isEmpty()) {
                                 mGlide.load(R.drawable.subreddit_default_icon)
                                         .apply(RequestOptions.bitmapTransform(new RoundedCornersTransformation(72, 0)))
                                         .into(((PostDetailBaseViewHolder) holder).iconGifImageView);
@@ -717,7 +725,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                     ((PostDetailBaseVideoAutoplayViewHolder) holder).setVolume((mMuteAutoplayingVideos || (mPost.isNSFW() && mMuteNSFWVideo)) ? 0f : 1f);
                 }
 
-                if (mPost.isRedgifs() && !mPost.isLoadRedgifsOrStreamableVideoSuccess()) {
+                /*if (mPost.isRedgifs() && !mPost.isLoadedStreamableVideoAlready()) {
                     ((PostDetailBaseVideoAutoplayViewHolder) holder).fetchRedgifsOrStreamableVideoCall =
                             mRedgifsRetrofit.create(RedgifsAPI.class)
                                     .getRedgifsData(APIUtils.getRedgifsOAuthHeader(
@@ -730,7 +738,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                                 public void onFetchRedgifsVideoLinkSuccess(String webm, String mp4) {
                                     mPost.setVideoDownloadUrl(mp4);
                                     mPost.setVideoUrl(mp4);
-                                    mPost.setLoadRedgifsOrStreamableVideoSuccess(true);
+                                    mPost.setLoadedStreamableVideoAlready(true);
                                     ((PostDetailBaseVideoAutoplayViewHolder) holder).bindVideoUri(Uri.parse(mPost.getVideoUrl()));
                                 }
 
@@ -739,7 +747,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                                     ((PostDetailBaseVideoAutoplayViewHolder) holder).loadFallbackDirectVideo();
                                 }
                             });
-                } else if(mPost.isStreamable() && !mPost.isLoadRedgifsOrStreamableVideoSuccess()) {
+                } else */if(mPost.isStreamable() && !mPost.isLoadedStreamableVideoAlready()) {
                     ((PostDetailBaseVideoAutoplayViewHolder) holder).fetchRedgifsOrStreamableVideoCall =
                             mStreamableApiProvider.get().getStreamableData(mPost.getStreamableShortCode());
                     FetchStreamableVideo.fetchStreamableVideoInRecyclerViewAdapter(mExecutor, new Handler(),
@@ -750,7 +758,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                                     StreamableVideo.Media media = streamableVideo.mp4 == null ? streamableVideo.mp4Mobile : streamableVideo.mp4;
                                     mPost.setVideoDownloadUrl(media.url);
                                     mPost.setVideoUrl(media.url);
-                                    mPost.setLoadRedgifsOrStreamableVideoSuccess(true);
+                                    mPost.setLoadedStreamableVideoAlready(true);
                                     ((PostDetailBaseVideoAutoplayViewHolder) holder).bindVideoUri(Uri.parse(mPost.getVideoUrl()));
                                 }
 
@@ -1053,14 +1061,16 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                 } else if (post.isRedgifs()) {
                     intent.putExtra(ViewVideoActivity.EXTRA_VIDEO_TYPE, ViewVideoActivity.VIDEO_TYPE_REDGIFS);
                     intent.putExtra(ViewVideoActivity.EXTRA_REDGIFS_ID, post.getRedgifsId());
-                    if (post.isLoadRedgifsOrStreamableVideoSuccess()) {
+                    intent.setData(Uri.parse(post.getVideoUrl()));
+                    intent.putExtra(ViewVideoActivity.EXTRA_VIDEO_DOWNLOAD_URL, post.getVideoDownloadUrl());
+                    /*if (post.isLoadRedgifsOrStreamableVideoSuccess()) {
                         intent.setData(Uri.parse(post.getVideoUrl()));
                         intent.putExtra(ViewVideoActivity.EXTRA_VIDEO_DOWNLOAD_URL, post.getVideoDownloadUrl());
-                    }
+                    }*/
                 } else if (post.isStreamable()) {
                     intent.putExtra(ViewVideoActivity.EXTRA_VIDEO_TYPE, ViewVideoActivity.VIDEO_TYPE_STREAMABLE);
                     intent.putExtra(ViewVideoActivity.EXTRA_STREAMABLE_SHORT_CODE, post.getStreamableShortCode());
-                    if (post.isLoadRedgifsOrStreamableVideoSuccess()) {
+                    if (post.isLoadedStreamableVideoAlready()) {
                         intent.setData(Uri.parse(post.getVideoUrl()));
                         intent.putExtra(ViewVideoActivity.EXTRA_VIDEO_DOWNLOAD_URL, post.getVideoDownloadUrl());
                     }
@@ -1144,12 +1154,14 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                     ((PostDetailBaseVideoAutoplayViewHolder) holder).fetchRedgifsOrStreamableVideoCall = null;
                 }
                 ((PostDetailBaseVideoAutoplayViewHolder) holder).mErrorLoadingRedgifsImageView.setVisibility(View.GONE);
+                ((PostDetailBaseVideoAutoplayViewHolder) holder).videoQualityButton.setVisibility(View.GONE);
                 ((PostDetailBaseVideoAutoplayViewHolder) holder).muteButton.setVisibility(View.GONE);
                 if (!((PostDetailBaseVideoAutoplayViewHolder) holder).isManuallyPaused) {
                     ((PostDetailBaseVideoAutoplayViewHolder) holder).resetVolume();
                 }
                 mGlide.clear(((PostDetailBaseVideoAutoplayViewHolder) holder).previewImageView);
                 ((PostDetailBaseVideoAutoplayViewHolder) holder).previewImageView.setVisibility(View.GONE);
+                ((PostDetailBaseVideoAutoplayViewHolder) holder).setDefaultResolutionAlready = false;
             } else if (holder instanceof PostDetailVideoAndGifPreviewHolder) {
                 mGlide.clear(((PostDetailVideoAndGifPreviewHolder) holder).binding.imageViewItemPostDetailVideoAndGifPreview);
             } else if (holder instanceof PostDetailImageAndGifAutoplayViewHolder) {
@@ -1718,6 +1730,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
         PlayerView playerView;
         GifImageView previewImageView;
         ImageView mErrorLoadingRedgifsImageView;
+        ImageView videoQualityButton;
         ImageView muteButton;
         ImageView fullscreenButton;
         ImageView playPauseButton;
@@ -1731,6 +1744,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
         private boolean isManuallyPaused;
         private Drawable playDrawable;
         private Drawable pauseDrawable;
+        private boolean setDefaultResolutionAlready;
 
         public PostDetailBaseVideoAutoplayViewHolder(@NonNull View itemView,
                                                      AspectRatioGifImageView iconGifImageView,
@@ -1751,6 +1765,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                                                      PlayerView playerView,
                                                      GifImageView previewImageView,
                                                      ImageView errorLoadingRedgifsImageView,
+                                                     ImageView videoQualityButton,
                                                      ImageView muteButton,
                                                      ImageView fullscreenButton,
                                                      ImageView playPauseButton,
@@ -1791,6 +1806,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
             this.previewImageView = previewImageView;
             this.mErrorLoadingRedgifsImageView = errorLoadingRedgifsImageView;
             this.playerView = playerView;
+            this.videoQualityButton = videoQualityButton;
             this.muteButton = muteButton;
             this.fullscreenButton = fullscreenButton;
             this.playPauseButton = playPauseButton;
@@ -1881,7 +1897,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                 mediaUri = Uri.parse(mPost.getVideoFallBackDirectUrl());
                 mPost.setVideoDownloadUrl(mPost.getVideoFallBackDirectUrl());
                 mPost.setVideoUrl(mPost.getVideoFallBackDirectUrl());
-                mPost.setLoadRedgifsOrStreamableVideoSuccess(true);
+                mPost.setLoadedStreamableVideoAlready(true);
                 if (container != null) {
                     container.onScrollStateChanged(RecyclerView.SCROLL_STATE_IDLE);
                 }
@@ -1925,6 +1941,81 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                     public void onTracksChanged(@NonNull Tracks tracks) {
                         ImmutableList<Tracks.Group> trackGroups = tracks.getGroups();
                         if (!trackGroups.isEmpty()) {
+                            if (mPost.isNormalVideo()) {
+                                videoQualityButton.setVisibility(View.VISIBLE);
+                                videoQualityButton.setOnClickListener(view -> {
+                                    TrackSelectionDialogBuilder builder = new TrackSelectionDialogBuilder(mActivity, mActivity.getString(R.string.select_video_quality), helper.getPlayer(), C.TRACK_TYPE_VIDEO);
+                                    builder.setShowDisableOption(true);
+                                    builder.setAllowAdaptiveSelections(false);
+                                    Dialog dialog = builder.setTheme(R.style.MaterialAlertDialogTheme).build();
+                                    dialog.show();
+                                    if (dialog instanceof AlertDialog) {
+                                        ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(mPrimaryTextColor);
+                                        ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_NEGATIVE).setTextColor(mPrimaryTextColor);
+                                    }
+                                });
+
+                                if (!setDefaultResolutionAlready) {
+                                    int desiredResolution = 0;
+                                    if (mDataSavingMode) {
+                                        if (mDataSavingModeDefaultResolution > 0) {
+                                            desiredResolution = mDataSavingModeDefaultResolution;
+                                        }
+                                    } else if (mNonDataSavingModeDefaultResolution > 0) {
+                                        desiredResolution = mNonDataSavingModeDefaultResolution;
+                                    }
+
+                                    if (desiredResolution > 0) {
+                                        TrackSelectionOverride trackSelectionOverride = null;
+                                        int bestTrackIndex = -1;
+                                        int bestResolution = -1;
+                                        int worstResolution = Integer.MAX_VALUE;
+                                        int worstTrackIndex = -1;
+                                        Tracks.Group bestTrackGroup = null;
+                                        Tracks.Group worstTrackGroup = null;
+                                        for (Tracks.Group trackGroup : tracks.getGroups()) {
+                                            if (trackGroup.getType() == C.TRACK_TYPE_VIDEO) {
+                                                for (int trackIndex = 0; trackIndex < trackGroup.length; trackIndex++) {
+                                                    int trackResolution = Math.min(trackGroup.getTrackFormat(trackIndex).height, trackGroup.getTrackFormat(trackIndex).width);
+                                                    if (trackResolution <= desiredResolution && trackResolution > bestResolution) {
+                                                        bestTrackIndex = trackIndex;
+                                                        bestResolution = trackResolution;
+                                                        bestTrackGroup = trackGroup;
+                                                    }
+                                                    if (trackResolution < worstResolution) {
+                                                        worstTrackIndex = trackIndex;
+                                                        worstResolution = trackResolution;
+                                                        worstTrackGroup = trackGroup;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if (bestTrackIndex != -1 && bestTrackGroup != null) {
+                                            trackSelectionOverride = new TrackSelectionOverride(
+                                                    bestTrackGroup.getMediaTrackGroup(),
+                                                    ImmutableList.of(bestTrackIndex)
+                                            );
+                                        } else if (worstTrackIndex != -1 && worstTrackGroup != null) {
+                                            trackSelectionOverride = new TrackSelectionOverride(
+                                                    worstTrackGroup.getMediaTrackGroup(),
+                                                    ImmutableList.of(worstTrackIndex)
+                                            );
+                                        }
+
+                                        if (trackSelectionOverride != null) {
+                                            helper.getPlayer().setTrackSelectionParameters(
+                                                    helper.getPlayer().getTrackSelectionParameters()
+                                                            .buildUpon()
+                                                            .addOverride(trackSelectionOverride)
+                                                            .build()
+                                            );
+                                        }
+                                    }
+                                    setDefaultResolutionAlready = true;
+                                }
+                            }
+
                             for (int i = 0; i < trackGroups.size(); i++) {
                                 String mimeType = trackGroups.get(i).getTrackFormat(0).sampleMimeType;
                                 if (mimeType != null && mimeType.contains("audio")) {
@@ -2031,6 +2122,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                     binding.playerViewItemPostDetailVideoAutoplay,
                     binding.previewImageViewItemPostDetailVideoAutoplay,
                     binding.errorLoadingVideoImageViewItemPostDetailVideoAutoplay,
+                    binding.getRoot().findViewById(R.id.video_quality_exo_playback_control_view),
                     binding.getRoot().findViewById(R.id.mute_exo_playback_control_view),
                     binding.getRoot().findViewById(R.id.fullscreen_exo_playback_control_view),
                     binding.getRoot().findViewById(R.id.exo_play),
@@ -2068,6 +2160,7 @@ public class PostDetailRecyclerViewAdapter extends RecyclerView.Adapter<Recycler
                     binding.playerViewItemPostDetailVideoAutoplay,
                     binding.previewImageViewItemPostDetailVideoAutoplay,
                     binding.errorLoadingVideoImageViewItemPostDetailVideoAutoplay,
+                    binding.getRoot().findViewById(R.id.video_quality_exo_playback_control_view),
                     binding.getRoot().findViewById(R.id.mute_exo_playback_control_view),
                     binding.getRoot().findViewById(R.id.fullscreen_exo_playback_control_view),
                     binding.getRoot().findViewById(R.id.exo_play),

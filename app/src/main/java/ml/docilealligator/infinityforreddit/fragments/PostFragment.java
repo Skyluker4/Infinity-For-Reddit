@@ -8,6 +8,7 @@ import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -18,6 +19,10 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.graphics.Insets;
+import androidx.core.view.OnApplyWindowInsetsListener;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.paging.LoadState;
 import androidx.recyclerview.widget.RecyclerView;
@@ -67,10 +72,8 @@ import ml.docilealligator.infinityforreddit.post.PostPagingSource;
 import ml.docilealligator.infinityforreddit.post.PostViewModel;
 import ml.docilealligator.infinityforreddit.postfilter.PostFilter;
 import ml.docilealligator.infinityforreddit.postfilter.PostFilterUsage;
-import ml.docilealligator.infinityforreddit.readpost.InsertReadPost;
 import ml.docilealligator.infinityforreddit.readpost.ReadPostsList;
 import ml.docilealligator.infinityforreddit.readpost.ReadPostsListInterface;
-import ml.docilealligator.infinityforreddit.readpost.ReadPostsUtils;
 import ml.docilealligator.infinityforreddit.thing.SortType;
 import ml.docilealligator.infinityforreddit.utils.SharedPreferencesUtils;
 import ml.docilealligator.infinityforreddit.utils.Utils;
@@ -185,6 +188,21 @@ public class PostFragment extends PostFragmentBase implements FragmentCommunicat
         setHasOptionsMenu(true);
 
         applyTheme();
+
+        if (activity.isImmersiveInterface()) {
+            ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
+                @NonNull
+                @Override
+                public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
+                    Insets allInsets = Utils.getInsets(insets, false);
+                    getPostRecyclerView().setPadding(
+                            0, 0, 0, allInsets.bottom
+                    );
+                    Log.i("asfsaf", "s " + postFragmentId);
+                    return WindowInsetsCompat.CONSUMED;
+                }
+            });
+        }
 
         binding.recyclerViewPostFragment.addOnWindowFocusChangedListener(this::onWindowFocusChanged);
 
@@ -1250,12 +1268,6 @@ public class PostFragment extends PostFragmentBase implements FragmentCommunicat
         } else {
             return false;
         }
-    }
-
-    @Override
-    public void markPostAsRead(Post post) {
-        int readPostsLimit = ReadPostsUtils.GetReadPostsLimit(activity.accountName, mPostHistorySharedPreferences);
-        InsertReadPost.insertReadPost(mRedditDataRoomDatabase, mExecutor, activity.accountName, post.getId(), readPostsLimit);
     }
 
     @Subscribe

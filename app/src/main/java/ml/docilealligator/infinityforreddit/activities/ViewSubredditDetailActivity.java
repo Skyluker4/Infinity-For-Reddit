@@ -33,6 +33,7 @@ import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.graphics.Insets;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.ViewGroupCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
@@ -137,7 +138,7 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
     public static final String EXTRA_VIEW_SIDEBAR = "EVSB";
 
     private static final String FETCH_SUBREDDIT_INFO_STATE = "FSIS";
-    private static final String CURRENT_ONLINE_SUBSCRIBERS_STATE = "COSS";
+    //private static final String CURRENT_ONLINE_SUBSCRIBERS_STATE = "COSS";
     private static final String MESSAGE_FULLNAME_STATE = "MFS";
     private static final String NEW_ACCOUNT_NAME_STATE = "NANS";
     public SubredditViewModel mSubredditViewModel;
@@ -183,7 +184,7 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
     private String subredditName;
     private String description;
     private boolean mFetchSubredditInfoSuccess = false;
-    private int mNCurrentOnlineSubscribers = 0;
+    //private int mNCurrentOnlineSubscribers = 0;
     private boolean isNsfwSubreddit = false;
     private boolean subscriptionReady = false;
     private boolean showToast = false;
@@ -245,14 +246,12 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
                     window.setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
                 }
 
+                ViewGroupCompat.installCompatInsetsDispatch(binding.getRoot());
                 ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), new OnApplyWindowInsetsListener() {
                     @NonNull
                     @Override
                     public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
-                        Insets allInsets = insets.getInsets(
-                                WindowInsetsCompat.Type.systemBars()
-                                        | WindowInsetsCompat.Type.displayCutout()
-                        );
+                        Insets allInsets = Utils.getInsets(insets, false);
 
                         topSystemBarHeight = allInsets.top;
 
@@ -319,7 +318,7 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
 
                         binding.tabLayoutViewSubredditDetailActivity.setPadding(allInsets.left, 0, allInsets.right, 0);
 
-                        return WindowInsetsCompat.CONSUMED;
+                        return insets;
                     }
                 });
                 /*adjustToolbar(binding.toolbar);
@@ -399,13 +398,13 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
             mNewAccountName = getIntent().getStringExtra(EXTRA_NEW_ACCOUNT_NAME);
         } else {
             mFetchSubredditInfoSuccess = savedInstanceState.getBoolean(FETCH_SUBREDDIT_INFO_STATE);
-            mNCurrentOnlineSubscribers = savedInstanceState.getInt(CURRENT_ONLINE_SUBSCRIBERS_STATE);
+            //mNCurrentOnlineSubscribers = savedInstanceState.getInt(CURRENT_ONLINE_SUBSCRIBERS_STATE);
             mMessageFullname = savedInstanceState.getString(MESSAGE_FULLNAME_STATE);
             mNewAccountName = savedInstanceState.getString(NEW_ACCOUNT_NAME_STATE);
 
-            if (mFetchSubredditInfoSuccess) {
+            /*if (mFetchSubredditInfoSuccess) {
                 binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setText(getString(R.string.online_subscribers_number_detail, mNCurrentOnlineSubscribers));
-            }
+            }*/
         }
 
         sectionsPagerAdapter = new SectionsPagerAdapter(this);
@@ -617,7 +616,7 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
         binding.subscribeSubredditChipViewSubredditDetailActivity.setTextColor(mCustomThemeWrapper.getChipTextColor());
         int primaryTextColor = mCustomThemeWrapper.getPrimaryTextColor();
         binding.subscriberCountTextViewViewSubredditDetailActivity.setTextColor(primaryTextColor);
-        binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setTextColor(primaryTextColor);
+        //binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setTextColor(primaryTextColor);
         binding.sinceTextViewViewSubredditDetailActivity.setTextColor(primaryTextColor);
         binding.creationTimeTextViewViewSubredditDetailActivity.setTextColor(primaryTextColor);
         binding.descriptionTextViewViewSubredditDetailActivity.setTextColor(primaryTextColor);
@@ -628,7 +627,7 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
             binding.subredditNameTextViewViewSubredditDetailActivity.setTypeface(typeface);
             binding.subscribeSubredditChipViewSubredditDetailActivity.setTypeface(typeface);
             binding.subscriberCountTextViewViewSubredditDetailActivity.setTypeface(typeface);
-            binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setTypeface(typeface);
+            //binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setTypeface(typeface);
             binding.sinceTextViewViewSubredditDetailActivity.setTypeface(typeface);
             binding.creationTimeTextViewViewSubredditDetailActivity.setTypeface(typeface);
             binding.descriptionTextViewViewSubredditDetailActivity.setTypeface(typeface);
@@ -670,8 +669,8 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
                     subredditName, accessToken, new FetchSubredditData.FetchSubredditDataListener() {
                         @Override
                         public void onFetchSubredditDataSuccess(SubredditData subredditData, int nCurrentOnlineSubscribers) {
-                            mNCurrentOnlineSubscribers = nCurrentOnlineSubscribers;
-                            binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setText(getString(R.string.online_subscribers_number_detail, nCurrentOnlineSubscribers));
+                            /*mNCurrentOnlineSubscribers = nCurrentOnlineSubscribers;
+                            binding.onlineSubscriberCountTextViewViewSubredditDetailActivity.setText(getString(R.string.online_subscribers_number_detail, nCurrentOnlineSubscribers));*/
                             InsertSubredditData.insertSubredditData(mExecutor, handler, mRedditDataRoomDatabase,
                                     subredditData, () -> mFetchSubredditInfoSuccess = true);
                         }
@@ -776,16 +775,13 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
                 startActivity(intent);
                 break;
             }
-            case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_GO_TO_TOP: {
+            case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_GO_TO_TOP:
+            default: {
                 if (sectionsPagerAdapter != null) {
                     sectionsPagerAdapter.goBackToTop();
                 }
                 break;
             }
-            default:
-                PostTypeBottomSheetFragment postTypeBottomSheetFragment = new PostTypeBottomSheetFragment();
-                postTypeBottomSheetFragment.show(getSupportFragmentManager(), postTypeBottomSheetFragment.getTag());
-                break;
         }
     }
 
@@ -797,6 +793,8 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
                 return R.drawable.ic_subscriptions_bottom_app_bar_day_night_24dp;
             case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_INBOX:
                 return R.drawable.ic_inbox_day_night_24dp;
+            case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_PROFILE:
+                return R.drawable.ic_account_circle_day_night_24dp;
             case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_MULTIREDDITS:
                 return R.drawable.ic_multi_reddit_day_night_24dp;
             case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_SUBMIT_POSTS:
@@ -828,9 +826,8 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
             case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_SAVED:
                 return R.drawable.ic_bookmarks_day_night_24dp;
             case SharedPreferencesUtils.OTHER_ACTIVITIES_BOTTOM_APP_BAR_OPTION_GO_TO_TOP:
-                return R.drawable.ic_keyboard_double_arrow_up_day_night_24dp;
             default:
-                return R.drawable.ic_account_circle_day_night_24dp;
+                return R.drawable.ic_keyboard_double_arrow_up_day_night_24dp;
         }
     }
 
@@ -1298,7 +1295,7 @@ public class ViewSubredditDetailActivity extends BaseActivity implements SortTyp
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
         outState.putBoolean(FETCH_SUBREDDIT_INFO_STATE, mFetchSubredditInfoSuccess);
-        outState.putInt(CURRENT_ONLINE_SUBSCRIBERS_STATE, mNCurrentOnlineSubscribers);
+        //outState.putInt(CURRENT_ONLINE_SUBSCRIBERS_STATE, mNCurrentOnlineSubscribers);
         outState.putString(MESSAGE_FULLNAME_STATE, mMessageFullname);
         outState.putString(NEW_ACCOUNT_NAME_STATE, mNewAccountName);
     }

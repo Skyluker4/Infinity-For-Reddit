@@ -9,8 +9,8 @@ android {
         applicationId "ml.docilealligator.infinityforreddit"
         minSdk 21
         targetSdk 35
-        versionCode 195
-        versionName "8.0.0-beta2"
+        versionCode 204
+        versionName "8.0.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         javaCompileOptions {
             annotationProcessorOptions {
@@ -39,6 +39,7 @@ android {
         }
     }
     compileOptions {
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
@@ -155,7 +156,7 @@ dependencies {
 /**** User Interface (frontend) ****/
 
     //Image loading
-    def glideVersion = "4.16.0"
+    def glideVersion = "5.0.5"
     implementation "com.github.bumptech.glide:glide:$glideVersion"
     annotationProcessor "com.github.bumptech.glide:compiler:$glideVersion"
     implementation 'jp.wasabeef:glide-transformations:4.3.0'
@@ -199,10 +200,11 @@ dependencies {
 
     implementation 'androidx.core:core-splashscreen:1.0.1'
 
-    implementation 'com.giphy.sdk:ui:2.3.15'
+    implementation 'com.giphy.sdk:ui:2.3.18'
 
     implementation 'com.github.alexzhirkevich:custom-qr-generator:2.0.0-alpha01'
 
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
 
 /**** Builds and flavors ****/
     // debugImplementation because LeakCanary should only run in debug builds.

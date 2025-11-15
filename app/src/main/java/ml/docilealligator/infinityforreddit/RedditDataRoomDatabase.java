@@ -44,9 +44,9 @@ import ml.docilealligator.infinityforreddit.user.UserDao;
 import ml.docilealligator.infinityforreddit.user.UserData;
 
 @Database(entities = {Account.class, SubredditData.class, SubscribedSubredditData.class, UserData.class,
-        SubscribedUserData.class, MultiReddit.class, CustomTheme.class, RecentSearchQuery.class,
-        ReadPost.class, PostFilter.class, PostFilterUsage.class, AnonymousMultiredditSubreddit.class,
-        CommentFilter.class, CommentFilterUsage.class, CommentDraft.class}, version = 30, exportSchema = false)
+    SubscribedUserData.class, MultiReddit.class, CustomTheme.class, RecentSearchQuery.class,
+    ReadPost.class, PostFilter.class, PostFilterUsage.class, AnonymousMultiredditSubreddit.class,
+    CommentFilter.class, CommentFilterUsage.class, CommentDraft.class}, version = 31, exportSchema = false)
 @TypeConverters(Converters.class)
 public abstract class RedditDataRoomDatabase extends RoomDatabase {
 
@@ -59,8 +59,8 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
                         MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
                         MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
                         MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25,
-                        MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29,
-                        MIGRATION_29_30)
+            MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28, MIGRATION_28_29,
+            MIGRATION_29_30, MIGRATION_30_31)
                 .build();
     }
 
@@ -435,7 +435,7 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
             database.execSQL("ALTER TABLE recent_search_queries ADD COLUMN search_in_thing_type INTEGER DEFAULT 0 NOT NULL");
         }
     };
-  
+
     private static final Migration MIGRATION_27_28 = new Migration(27, 28) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
@@ -457,11 +457,10 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
                     "PRIMARY KEY (full_name, draft_type))");
         }
     };
-
     private static final Migration MIGRATION_29_30 = new Migration(29, 30) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
-            // Create a temporary table with the correct schema
+            // Migrate recent_search_queries safely even if some columns don't exist yet
             database.execSQL("CREATE TABLE recent_search_queries_temp(" +
                     "username TEXT NOT NULL, " +
                     "search_query TEXT NOT NULL, " +
@@ -520,6 +519,40 @@ public abstract class RedditDataRoomDatabase extends RoomDatabase {
             // Drop the old table and rename the temp table
             database.execSQL("DROP TABLE recent_search_queries");
             database.execSQL("ALTER TABLE recent_search_queries_temp RENAME TO recent_search_queries");
+
+            // Also add new columns to post_filter table
+            database.execSQL("ALTER TABLE post_filter ADD COLUMN contain_users TEXT");
+            database.execSQL("ALTER TABLE post_filter ADD COLUMN contain_subreddits TEXT");
         }
     };
+    private static final Migration MIGRATION_30_31 = new Migration(30, 31) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            addColumnIfMissing(database, "post_filter", "contain_subreddits", "TEXT");
+            addColumnIfMissing(database, "post_filter", "contain_users", "TEXT");
+        }
+    };
+
+    private static void addColumnIfMissing(@NonNull SupportSQLiteDatabase database, @NonNull String tableName,
+                                           @NonNull String columnName, @NonNull String columnDefinition) {
+        if (!doesColumnExist(database, tableName, columnName)) {
+            database.execSQL("ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnDefinition);
+        }
+    }
+
+    private static boolean doesColumnExist(@NonNull SupportSQLiteDatabase database, @NonNull String tableName,
+                                           @NonNull String columnName) {
+        Cursor cursor = database.query("PRAGMA table_info(" + tableName + ")");
+        try {
+            int nameIndex = cursor.getColumnIndex("name");
+            while (cursor.moveToNext()) {
+                if (nameIndex >= 0 && columnName.equals(cursor.getString(nameIndex))) {
+                    return true;
+                }
+            }
+            return false;
+        } finally {
+            cursor.close();
+        }
+    }
 }
