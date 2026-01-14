@@ -72,7 +72,7 @@ public class PostFilterUsageListingActivity extends BaseActivity {
 
         applyCustomTheme();
 
-        if (isImmersiveInterface()) {
+        if (isImmersiveInterfaceRespectForcedEdgeToEdge()) {
             if (isChangeStatusBarIconColor()) {
                 addOnOffsetChangedListener(binding.appbarLayoutPostFilterApplicationActivity);
             }
@@ -81,7 +81,7 @@ public class PostFilterUsageListingActivity extends BaseActivity {
                 @NonNull
                 @Override
                 public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
-                    Insets allInsets = Utils.getInsets(insets, false);
+                    Insets allInsets = Utils.getInsets(insets, false, isForcedImmersiveInterface());
 
                     setMargins(binding.toolbarPostFilterApplicationActivity,
                             allInsets.left,
@@ -237,6 +237,7 @@ public class PostFilterUsageListingActivity extends BaseActivity {
     protected void applyCustomTheme() {
         applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutPostFilterApplicationActivity,
                 binding.collapsingToolbarLayoutPostFilterApplicationActivity, binding.toolbarPostFilterApplicationActivity);
+        applyAppBarScrollFlagsIfApplicable(binding.collapsingToolbarLayoutPostFilterApplicationActivity);
         applyFABTheme(binding.fabPostFilterApplicationActivity);
         binding.getRoot().setBackgroundColor(customThemeWrapper.getBackgroundColor());
     }

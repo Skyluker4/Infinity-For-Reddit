@@ -160,7 +160,7 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
             if (isChangeStatusBarIconColor()) {
                 addOnOffsetChangedListener(binding.appbarLayoutSearchResultActivity);            }
 
-            if (isImmersiveInterface()) {
+            if (isImmersiveInterfaceRespectForcedEdgeToEdge()) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     window.setDecorFitsSystemWindows(false);
                 } else {
@@ -171,7 +171,7 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
                     @NonNull
                     @Override
                     public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
-                        Insets allInsets = Utils.getInsets(insets, false);
+                        Insets allInsets = Utils.getInsets(insets, false, isForcedImmersiveInterface());
 
                         setMargins(binding.toolbarSearchResultActivity,
                                 allInsets.left,
@@ -261,6 +261,7 @@ public class SearchResultActivity extends BaseActivity implements SortTypeSelect
         binding.getRoot().setBackgroundColor(mCustomThemeWrapper.getBackgroundColor());
         applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(binding.appbarLayoutSearchResultActivity,
                 binding.collapsingToolbarLayoutSearchResultActivity, binding.toolbarSearchResultActivity);
+        applyAppBarScrollFlagsIfApplicable(binding.collapsingToolbarLayoutSearchResultActivity);
         applyTabLayoutTheme(binding.tabLayoutSearchResultActivity);
         applyFABTheme(binding.fabSearchResultActivity);
     }

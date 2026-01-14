@@ -87,7 +87,7 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
                 addOnOffsetChangedListener(binding.accountPostsAppbarLayout);
             }
 
-            if (isImmersiveInterface()) {
+            if (isImmersiveInterfaceRespectForcedEdgeToEdge()) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     window.setDecorFitsSystemWindows(false);
                 } else {
@@ -97,7 +97,7 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
                     @NonNull
                     @Override
                     public WindowInsetsCompat onApplyWindowInsets(@NonNull View v, @NonNull WindowInsetsCompat insets) {
-                        Insets allInsets = Utils.getInsets(insets, false);
+                        Insets allInsets = Utils.getInsets(insets, false, isForcedImmersiveInterface());
 
                         setMargins(binding.accountPostsToolbar,
                                 allInsets.left,
@@ -169,6 +169,7 @@ public class AccountPostsActivity extends BaseActivity implements SortTypeSelect
         applyAppBarLayoutAndCollapsingToolbarLayoutAndToolbarTheme(
                 binding.accountPostsAppbarLayout, binding.accountPostsCollapsingToolbarLayout,
                 binding.accountPostsToolbar);
+        applyAppBarScrollFlagsIfApplicable(binding.accountPostsCollapsingToolbarLayout);
     }
 
     private void initializeFragment() {
