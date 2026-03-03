@@ -233,6 +233,10 @@ public class SharedPreferencesUtils {
     public static final String LONG_PRESS_POST_VALUE_NONE = "0";
     public static final String LONG_PRESS_POST_VALUE_SHOW_POST_OPTIONS = "1";
     public static final String LONG_PRESS_POST_VALUE_PREVIEW_IN_FULLSCREEN = "2";
+    public static final String TAB_SWITCHING_SENSITIVITY = "tab_switching_sensitivity";
+    public static final String SWIPE_RIGHT_TO_GO_BACK_SENSITIVITY = "swipe_right_to_go_back_sensitivity";
+    public static final String SWIPE_ACTION_SENSITIVITY_IN_COMMENTS = "swipe_action_sensitivity_in_comments";
+    public static final String NAVIGATION_DRAWER_SWIPE_AREA = "navigation_drawer_swipe_area";
 
     public static String getPostDetailFabPortraitX(@Nullable Display display) {
         if (display == null) {
@@ -401,6 +405,9 @@ public class SharedPreferencesUtils {
     public static final String MARK_POSTS_AS_READ_AFTER_VOTING_BASE = "_mark_posts_as_read_after_voting";
     public static final String MARK_POSTS_AS_READ_ON_SCROLL_BASE = "_mark_posts_as_read_on_scroll";
     public static final String HIDE_READ_POSTS_AUTOMATICALLY_BASE = "_hide_read_posts_automatically";
+    public static final String HIDE_READ_POSTS_AUTOMATICALLY_IN_SUBREDDITS_BASE = "_hide_read_posts_automatically_in_subreddits";
+    public static final String HIDE_READ_POSTS_AUTOMATICALLY_IN_USERS_BASE = "_hide_read_posts_automatically_in_users";
+    public static final String HIDE_READ_POSTS_AUTOMATICALLY_IN_SEARCH_BASE = "_hide_read_posts_automatically_in_search";
 
     public static final String CURRENT_ACCOUNT_SHARED_PREFERENCES_FILE = "ml.docilealligator.infinityforreddit.current_account";
     public static final String ACCOUNT_NAME = "account_name";
